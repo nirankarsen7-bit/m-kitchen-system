@@ -1846,24 +1846,51 @@ export const DashboardReports: React.FC = () => {
               <span className="text-[10px] font-mono text-mocha mt-1.5 block">Itemized yields, cover counts, and trending matrices</span>
             </div>
 
-            {/* Quick table search with mic */}
-            <div className="relative flex items-center max-w-xs w-full bg-cream-warm/15 rounded-xl border border-gold-rich/15 px-3 py-1.5">
-              <Search className="w-4 h-4 text-mocha mr-2" />
-              <input
-                type="text"
-                value={filterItemName}
-                onChange={(e) => setFilterItemName(e.target.value)}
-                placeholder="Search analytics items..."
-                className="w-full text-xs text-espresso focus:outline-none bg-transparent"
-              />
-              <button 
-                onClick={() => listenVoiceInput("item")}
-                className={`p-1 rounded-full ${micState.active && micState.target === "item" ? "text-red-600 bg-red-100" : "text-mocha"}`}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Quick table search with mic */}
+              <div className="relative flex items-center max-w-xs w-full bg-cream-warm/15 rounded-xl border border-gold-rich/15 px-3 py-1.5">
+                <Search className="w-4 h-4 text-mocha mr-2" />
+                <input
+                  type="text"
+                  value={filterItemName}
+                  onChange={(e) => setFilterItemName(e.target.value)}
+                  placeholder="Search analytics items..."
+                  className="w-full text-xs text-espresso focus:outline-none bg-transparent"
+                />
+                <button
+                  onClick={() => listenVoiceInput("item")}
+                  className={`p-1 rounded-full ${micState.active && micState.target === "item" ? "text-red-600 bg-red-100" : "text-mocha"}`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Dedicated download button for this table (CSV of item analytics) */}
+              <Button
+                variant="gold"
+                size="sm"
+                onClick={() => {
+                  const headers = "Dish,Category,Qty Sold,Orders,Revenue (INR)\n";
+                  const rows = metrics.itemsAnalytics.map(i =>
+                    `"${i.name}","${i.category}",${i.qty},${i.orders},${i.revenue.toFixed(2)}`
+                  ).join("\n");
+                  const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute("download", `MaharajiKitchen_ItemAnalytics_${reportType}_${selectedDate}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast.success("Item analytics report downloaded!");
+                }}
+                className="py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
               >
-                <Mic className="w-3.5 h-3.5" />
-              </button>
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Report</span>
+              </Button>
             </div>
           </div>
+
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-espresso">
