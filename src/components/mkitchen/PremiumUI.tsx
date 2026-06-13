@@ -185,10 +185,10 @@ export const Card: React.FC<CardProps> = ({
   children,
   ...props
 }) => {
-  const base = "rounded-2xl p-6 transition-all duration-300 ";
-  
+  const base = "rounded-2xl p-6 transition-all duration-300 card-elite ";
+
   const styles = {
-    standard: "bg-white border border-gold-rich/10 shadow-md shadow-mocha/5 hover:shadow-xl hover:translate-y-[-2px]",
+    standard: "bg-white border border-gold-rich/15 shadow-md shadow-mocha/5",
     glass: "bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl rounded-3xl",
     dark: "bg-luxury-dark text-cream-ivory border border-gold-rich/20 shadow-2xl p-6",
     outline: "bg-transparent border-2 border-dashed border-gold-rich/20 rounded-2xl"
