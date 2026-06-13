@@ -40,6 +40,7 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
 
   // Local UI states
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [foodTypeFilter, setFoodTypeFilter] = useState<"all" | "veg" | "non_veg">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isCartExpanded, setIsCartExpanded] = useState<boolean>(false);
