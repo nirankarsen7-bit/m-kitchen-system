@@ -6,7 +6,7 @@ import { KeyRound, User, Lock, Sparkles, LogIn, ChevronLeft, CircleAlert as Aler
 export const LoginScreen: React.FC = () => {
   const login = useStore(state => state.login);
   const currentUser = useStore(state => state.currentUser);
-  const setActiveTab = useStore(state => state.setActiveTab);
+
 
   // States
   const [username, setUsername] = useState("");
