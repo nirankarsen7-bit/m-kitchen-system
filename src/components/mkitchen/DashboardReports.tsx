@@ -1254,13 +1254,27 @@ export const DashboardReports: React.FC = () => {
         <td>${esc(p.supplier || "—")}</td>
       </tr>`).join("");
 
-    const paymentRows = supplierPayments.map(p => `
-      <tr>
-        <td>${new Date(p.payment_date).toLocaleDateString()}</td>
-        <td>${esc(p.payment_method)}</td>
-        <td>${esc(p.reference_number || "—")}</td>
-        <td style="text-align:right;font-weight:bold">₹${p.amount.toFixed(2)}</td>
-      </tr>`).join("");
+    // Point 1: itemised bill rows - each bill expanded into one row per item plus a totals row
+    const billItemRows = filteredData.slice(0, 200).map(b => {
+      const items = getBillItems(b);
+      const itemTrs = items.map((it, idx) => `
+        <tr>
+          <td>${idx === 0 ? esc(b.bill_number) : ""}</td>
+          <td>${idx === 0 ? `Table ${esc(b.table_number)}` : ""}</td>
+          <td>${esc(it.name)}</td>
+          <td style="text-align:right">${it.qty}</td>
+          <td style="text-align:right">₹${it.rate.toFixed(2)}</td>
+          <td style="text-align:right">₹${it.amount.toFixed(2)}</td>
+          <td>${idx === 0 ? new Date(b.created_at).toLocaleString() : ""}</td>
+        </tr>`).join("");
+      const totalsTr = `
+        <tr style="background:#FAF0E5;font-weight:bold">
+          <td colspan="3" style="text-align:right">Subtotal / Discount / Total</td>
+          <td colspan="3" style="text-align:right">₹${b.subtotal.toFixed(2)} &nbsp; - ₹${b.discount.toFixed(2)} &nbsp; = ₹${b.total.toFixed(2)}</td>
+          <td>${esc(b.coupon_code || "—")}</td>
+        </tr>`;
+      return itemTrs + totalsTr;
+    }).join("");
 
     w.document.write(`<!doctype html><html><head><meta charset="utf-8" />
       <title>Maharaji Kitchen - Sales Report ${esc(reportType)} ${esc(selectedDate)}</title>
