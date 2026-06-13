@@ -315,9 +315,10 @@ export const DashboardStock: React.FC = () => {
               className="w-full py-3 text-xs uppercase font-bold tracking-wider"
             >
               <Plus className="w-4 h-4" />
-              <span>Record stock checkin</span>
+              <span>Record Stock</span>
             </Button>
           </form>
+
         </div>
 
         {/* Right ledger list table (8 cols) */}
