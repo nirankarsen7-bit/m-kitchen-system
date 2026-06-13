@@ -424,7 +424,7 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     // Menu Items CRUD
-    addMenuItem: (name, category_id, price, custom_desc, custom_img) => {
+    addMenuItem: (name, category_id, price, custom_desc, custom_img, food_type) => {
       const category = get().categories.find(c => c.id === category_id);
       const desc = custom_desc || generateDescription(name, category?.name || "Premium Dishes");
       const img = custom_img || getFoodImage(name);
@@ -436,7 +436,8 @@ export const useStore = create<AppState>((set, get) => {
         description: desc,
         price,
         image_url: img,
-        is_available: true
+        is_available: true,
+        food_type: food_type || "veg"
       };
       const updated = [...get().menuItems, newItem];
       set({ menuItems: updated });
