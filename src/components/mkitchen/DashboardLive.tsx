@@ -1,7 +1,7 @@
 import React from "react";
-import { useStore } from "../store";
-import { OrderItemStatus, TableStatus, UserRole } from "../types";
-import { Button, Card, EmptyState } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { OrderItemStatus, TableStatus, UserRole } from "@/lib/mk-types";
+import { Button, Card, EmptyState } from "@/components/mkitchen/PremiumUI";
 import { ShoppingBag, Check, X, BellRing, Utensils, IndianRupee, Grid2x2 as Grid, Clock, Flame, ShieldCheck, TrendingUp, Sparkles, TriangleAlert as AlertTriangle } from "lucide-react";
 
 export const DashboardLive: React.FC = () => {

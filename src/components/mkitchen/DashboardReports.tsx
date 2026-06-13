@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useStore } from "../store";
-import { Card, Button, MaharajiLogo } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { Card, Button, MaharajiLogo } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { FileText, TrendingUp, Receipt, Crown, Calendar, Search, Mic, MicOff, Trash2, Download, Printer, ListFilter as Filter, ChevronDown, ChevronUp, Sparkles, Loader as Loader2, Info, ArrowUpRight, ArrowDownLeft, CircleAlert as AlertCircle, RefreshCw, ChartBar as BarChart3, ChartPie as PieIcon, Package, Check, Circle as HelpCircle } from "lucide-react";
 import { 
@@ -10,7 +10,7 @@ import {
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
-import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "../types";
+import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "@/lib/mk-types";
 
 // Dynamic Pseudo-random generator for high-fidelity deterministic fallback seed history
 const createRng = (seedStr: string) => {

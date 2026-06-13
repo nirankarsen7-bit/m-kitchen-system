@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { useStore } from "../store";
-import { TableStatus, OrderItemStatus } from "../types";
-import { Button, Card, EmptyState, Modal, FormInput } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { TableStatus, OrderItemStatus } from "@/lib/mk-types";
+import { Button, Card, EmptyState, Modal, FormInput } from "@/components/mkitchen/PremiumUI";
 import { ClipboardList, Printer, Download, CreditCard, CreditCard as Edit3, Check, TriangleAlert as AlertTriangle, Trash2, Sparkles, ShieldCheck, Percent, Clock } from "lucide-react";
 import jsPDF from "jspdf";
 

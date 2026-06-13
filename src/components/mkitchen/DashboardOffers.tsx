@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useStore } from "../store";
-import { UserRole } from "../types";
-import { Button, Card, FormInput } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { UserRole } from "@/lib/mk-types";
+import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Percent, Ticket, Settings } from "lucide-react";
 

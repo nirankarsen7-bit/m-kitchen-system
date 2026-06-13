@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useStore, generateDescription, getFoodImage } from "../store";
-import { Button, Card, EmptyState, Modal, FormInput } from "./PremiumUI";
+import { useStore, generateDescription, getFoodImage } from "@/lib/mk-store";
+import { Button, Card, EmptyState, Modal, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { ChefHat, Plus, Trash2, Edit3, Check, Sparkles, Flame, Eye, HelpCircle, UtensilsCrossed, Image as ImageIcon, EyeOff, ToggleLeft, ToggleRight } from "lucide-react";
 

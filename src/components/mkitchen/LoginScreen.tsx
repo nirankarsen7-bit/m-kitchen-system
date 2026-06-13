@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useStore } from "../store";
-import { MaharajiLogo, Button, Card, FormInput } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { MaharajiLogo, Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { KeyRound, User, Lock, Sparkles, LogIn, ChevronLeft, CircleAlert as AlertCircle } from "lucide-react";
 
 export const LoginScreen: React.FC = () => {

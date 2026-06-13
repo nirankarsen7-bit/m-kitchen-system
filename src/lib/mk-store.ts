@@ -19,7 +19,7 @@ import {
   MaterialUsage,
   SupplierPayment,
   CouponSettings
-} from "./types";
+} from "@/lib/mk-types";
 
 // Premium Curated Unsplash images dictionary for Indian foods
 const PREMIUM_FOOD_IMAGES: Record<string, string> = {

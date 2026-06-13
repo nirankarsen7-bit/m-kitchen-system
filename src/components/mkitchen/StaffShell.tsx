@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useStore } from "../store";
-import { MaharajiLogo, Button } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { MaharajiLogo, Button } from "@/components/mkitchen/PremiumUI";
 import { motion, AnimatePresence } from "motion/react";
 import { Hop as Home, Grid2x2 as Grid, ClipboardList, ChefHat, Gift, Package, FileText, ChartBar as BarChart3, QrCode, Settings, LogOut, Clock, User, Menu, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
 

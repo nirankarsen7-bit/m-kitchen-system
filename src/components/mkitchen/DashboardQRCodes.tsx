@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useStore } from "../store";
-import { Button, Card } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { Button, Card } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { QrCode, Printer, Info, FileImage, Download, Sparkles, Loader as Loader2 } from "lucide-react";
 import QRCode from "qrcode";

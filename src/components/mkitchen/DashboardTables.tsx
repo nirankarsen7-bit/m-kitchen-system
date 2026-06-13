@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useStore } from "../store";
-import { TableStatus, OrderItemStatus } from "../types";
-import { Button, Card, VoiceSearchMic } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { TableStatus, OrderItemStatus } from "@/lib/mk-types";
+import { Button, Card, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Lock, 

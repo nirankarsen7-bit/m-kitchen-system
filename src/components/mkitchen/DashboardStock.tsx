@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
-import { useStore } from "../store";
-import { Button, Card, FormInput, VoiceSearchMic } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Package, Plus, Trash2, Search, Download, Calendar, ArrowUpRight, TrendingUp, Upload, X, IndianRupee, CreditCard, Image as ImageIcon } from "lucide-react";
-import { UserRole } from "../types";
+import { UserRole } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
   // Zustand States

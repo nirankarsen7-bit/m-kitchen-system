@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useStore } from "../store";
-import { TableStatus, OrderItemStatus } from "../types";
+import { useStore } from "@/lib/mk-store";
+import { TableStatus, OrderItemStatus } from "@/lib/mk-types";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   MaharajiLogo, 
@@ -8,7 +8,7 @@ import {
   Card, 
   VoiceSearchMic, 
   EmptyState 
-} from "./PremiumUI";
+} from "@/components/mkitchen/PremiumUI";
 import { ShoppingBag, Plus, Minus, Percent, Check, Clock, ChevronUp, ChevronDown, Lock, Sparkles, Flame, UtensilsCrossed, Beef, Croissant, Candy, Circle as HelpCircle, Search } from "lucide-react";
 
 // Helper to match category icons accurately

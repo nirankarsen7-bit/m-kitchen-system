@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useStore } from "../store";
-import { TableStatus, UserRole } from "../types";
-import { Button, Card, FormInput, Modal } from "./PremiumUI";
+import { useStore } from "@/lib/mk-store";
+import { TableStatus, UserRole } from "@/lib/mk-types";
+import { Button, Card, FormInput, Modal } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Settings, Trash2, RefreshCw, Check, FileSliders as Sliders, OctagonAlert as AlertOctagon } from "lucide-react";
 

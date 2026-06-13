@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useStore } from "../store";
-import { TableStatus } from "../types";
+import { useStore } from "@/lib/mk-store";
+import { TableStatus } from "@/lib/mk-types";
 import { motion, AnimatePresence } from "motion/react";
 import { Crown, Sparkles, User, ShoppingBag, ShieldCheck, ChevronRight, Minimize2, Eye } from "lucide-react";
 
