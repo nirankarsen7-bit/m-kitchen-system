@@ -241,9 +241,13 @@ export const DashboardActiveOrders: React.FC = () => {
           <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
         </head>
         <body>
+          <div style="text-align:center; margin-bottom:4px;">
+            <img src="https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png" alt="Maharaji Kitchen" style="width:64px; height:64px; object-fit:contain;" />
+          </div>
           <h3 class="text-center" style="margin:2px 0;">MAHARAJI KITCHEN</h3>
           <p class="text-center" style="font-size:11px; margin:2px 0; font-style: italic;">"${system.tagline}"</p>
-          <p class="text-center" style="font-size:10px; margin:2px 0;">Sukhanibasti, NH31C, West Bengal 735225</p>
+          <p class="text-center" style="font-size:10px; margin:2px 0;">Nagrakata, Sukhanibasti, NH31C</p>
+          <p class="text-center" style="font-size:10px; margin:2px 0;">West Bengal 735225</p>
           <p class="text-center" style="font-size:10px; margin:2px 0;">WhatsApp: +91 70764 30467</p>
           
           <div class="border-b"></div>
