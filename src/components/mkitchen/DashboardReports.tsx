@@ -1224,16 +1224,8 @@ export const DashboardReports: React.FC = () => {
       return;
     }
     const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
-    const billRows = filteredData.slice(0, 200).map(b => `
-      <tr>
-        <td>${esc(b.bill_number)}</td>
-        <td>Table ${esc(b.table_number)}</td>
-        <td style="text-align:right">₹${b.subtotal.toFixed(2)}</td>
-        <td>${esc(b.coupon_code || "—")}</td>
-        <td style="text-align:right">₹${b.discount.toFixed(2)}</td>
-        <td style="text-align:right;font-weight:bold">₹${b.total.toFixed(2)}</td>
-        <td>${new Date(b.created_at).toLocaleString()}</td>
-      </tr>`).join("");
+    // (Plain billRows removed; Point 1 uses billItemRows below.)
+
 
     const itemRows = metrics.itemsAnalytics.map(i => `
       <tr>
