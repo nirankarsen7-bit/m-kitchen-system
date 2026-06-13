@@ -1310,8 +1310,21 @@ export const DashboardReports: React.FC = () => {
         <div class="kpi"><span>Margin</span><strong>${metrics.margin.toFixed(1)}%</strong></div>
       </div>
 
-      <h2>Sales — Bills Ledger</h2>
-      <table><thead><tr><th>Invoice</th><th>Table</th><th>Subtotal</th><th>Coupon</th><th>Discount</th><th>Total</th><th>Date</th></tr></thead><tbody>${billRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
+      <h2>🏆 Highest Sales Date in this Period</h2>
+      <div style="padding:12px;background:linear-gradient(135deg,#FAF0E5,#FFF9E8);border:2px solid #D4AF37;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#5C4033;font-weight:bold;text-transform:uppercase;letter-spacing:0.15em;">Top Earning Day</div>
+          <div style="font-size:22px;color:#7B1E2B;font-family:Georgia,serif;font-weight:bold;margin-top:2px;">${topSalesDate ? new Date(topSalesDateStr).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#5C4033;font-weight:bold;text-transform:uppercase;">Revenue</div>
+          <div style="font-size:24px;color:#7B1E2B;font-weight:bold;">₹${topSalesDateRevenue.toFixed(2)}</div>
+          <div style="font-size:11px;color:#5C4033;">${topSalesDateBills} bills closed</div>
+        </div>
+      </div>
+
+      <h2>Sales — Bills Ledger (item-wise breakdown)</h2>
+      <table><thead><tr><th>Invoice</th><th>Table</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th><th>Date / Coupon</th></tr></thead><tbody>${billItemRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
 
       <h2>Item-wise Sales Analytics</h2>
       <table><thead><tr><th>Dish</th><th>Category</th><th>Qty Sold</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:#888">No items sold</td></tr>'}</tbody></table>
