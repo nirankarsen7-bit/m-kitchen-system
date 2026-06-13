@@ -171,13 +171,13 @@ export const DashboardActiveOrders: React.FC = () => {
 
     // Items Column Titles
     doc.setFont("Helvetica", "bold");
-    doc.text("ITEM", 5, 37);
-    doc.text("QTY", width - 20, 37);
-    doc.text("PRICE", width - 10, 37, { align: "right" });
-    doc.line(4, 39, width - 4, 39);
+    doc.text("ITEM", 5, 46);
+    doc.text("QTY", width - 20, 46);
+    doc.text("PRICE", width - 10, 46, { align: "right" });
+    doc.line(4, 48, width - 4, 48);
 
     doc.setFont("Helvetica", "normal");
-    let y = 43;
+    let y = 52;
 
     // Write Items
     list.forEach(oi => {
