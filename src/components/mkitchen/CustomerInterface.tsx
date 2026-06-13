@@ -194,9 +194,10 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
   // Filter food list
   const filteredMenuItems = menuItems.filter(item => {
     const matchesCategory = activeCategory === "all" || item.category_id === activeCategory;
+    const matchesFoodType = foodTypeFilter === "all" || (foodTypeFilter === "non_veg" ? item.food_type === "non_veg" : (item.food_type ?? "veg") === "veg");
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesFoodType && matchesSearch;
   });
 
   // Calculate order items for active table which is confirmed
