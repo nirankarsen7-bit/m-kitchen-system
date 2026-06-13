@@ -62,17 +62,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ prefilledRole, onBack 
 
       <div className="max-w-md w-full scale-100 transition-all duration-500 relative z-10">
         
-        {/* Upper Floating Backwards Button */}
-        <button 
+        {/* Upper Floating Back Button - go back to welcome page if available, else to customer menu */}
+        <button
           onClick={() => {
-            window.history.pushState({}, "", "?table=5");
-            window.dispatchEvent(new Event("popstate"));
-          }} 
+            if (onBack) {
+              onBack();
+            } else {
+              window.history.pushState({}, "", "?table=5");
+              window.dispatchEvent(new Event("popstate"));
+            }
+          }}
           className="absolute -top-14 left-0 flex items-center gap-1 text-xs text-mocha hover:text-maroon-royal font-bold transition-all"
         >
           <ChevronLeft className="w-4 h-4" />
-          <span>Exit to Customer Menu</span>
+          <span>{onBack ? "Back to Welcome" : "Exit to Customer Menu"}</span>
         </button>
+
+        {prefilledRole === "admin" && (
+          <div className="absolute -top-14 right-0 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-shimmer bg-maroon-deep/80 px-3 py-1.5 rounded-lg border border-gold-rich/30">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Admin Login
+          </div>
+        )}
 
         <Card variant="glass" className="border-2 border-gold-rich/30 relative overflow-hidden py-10 px-8 md:px-10 rounded-3xl">
           {/* Header crown glow lines */}
