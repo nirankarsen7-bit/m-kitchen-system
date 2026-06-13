@@ -54,6 +54,7 @@ export interface MenuItem {
   price: number;
   image_url: string;
   is_available: boolean;
+  food_type?: "veg" | "non_veg";
   created_at?: string;
 }
 
