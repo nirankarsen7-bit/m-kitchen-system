@@ -1105,10 +1105,102 @@ export const DashboardReports: React.FC = () => {
     }
   };
 
-  // Master browser printing
+  // Master print: open a clean printable window with full sales/stock/payment data tables
   const handlePrintFullReport = () => {
-    window.print();
+    const w = window.open("", "_blank", "width=1024,height=768");
+    if (!w) {
+      toast.error("Pop-up blocked. Please allow pop-ups to print the report.");
+      return;
+    }
+    const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+    const billRows = filteredData.slice(0, 200).map(b => `
+      <tr>
+        <td>${esc(b.bill_number)}</td>
+        <td>Table ${esc(b.table_number)}</td>
+        <td style="text-align:right">₹${b.subtotal.toFixed(2)}</td>
+        <td>${esc(b.coupon_code || "—")}</td>
+        <td style="text-align:right">₹${b.discount.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:bold">₹${b.total.toFixed(2)}</td>
+        <td>${new Date(b.created_at).toLocaleString()}</td>
+      </tr>`).join("");
+
+    const itemRows = metrics.itemsAnalytics.map(i => `
+      <tr>
+        <td>${esc(i.name)}</td>
+        <td>${esc(i.category)}</td>
+        <td style="text-align:right">${i.qty}</td>
+        <td style="text-align:right">${i.orders}</td>
+        <td style="text-align:right;font-weight:bold">₹${i.revenue.toFixed(2)}</td>
+      </tr>`).join("");
+
+    const stockRows = parsedData.purchases.map(p => `
+      <tr>
+        <td>${new Date(p.date).toLocaleDateString()}</td>
+        <td>${esc(p.item_name)}</td>
+        <td>${p.quantity} ${esc(p.unit)}</td>
+        <td style="text-align:right">₹${p.unit_price.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:bold">₹${p.total.toFixed(2)}</td>
+        <td>${esc(p.supplier || "—")}</td>
+      </tr>`).join("");
+
+    const paymentRows = supplierPayments.map(p => `
+      <tr>
+        <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+        <td>${esc(p.payment_method)}</td>
+        <td>${esc(p.reference_number || "—")}</td>
+        <td style="text-align:right;font-weight:bold">₹${p.amount.toFixed(2)}</td>
+      </tr>`).join("");
+
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8" />
+      <title>Maharaji Kitchen - Sales Report ${esc(reportType)} ${esc(selectedDate)}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; color: #2D1810; padding: 24px; margin: 0; }
+        h1 { font-family: Georgia, serif; color: #7B1E2B; margin: 0 0 4px; }
+        h2 { font-family: Georgia, serif; color: #7B1E2B; margin: 24px 0 8px; border-bottom: 2px solid #D4AF37; padding-bottom: 4px; font-size: 16px; }
+        .meta { color: #5C4033; font-size: 12px; margin-bottom: 12px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+        .kpi { border: 1px solid #D4AF37; padding: 8px; border-radius: 6px; }
+        .kpi span { display: block; font-size: 10px; color: #5C4033; text-transform: uppercase; font-weight: bold; }
+        .kpi strong { display: block; font-size: 16px; color: #7B1E2B; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+        th { background: #FAF0E5; color: #7B1E2B; text-align: left; padding: 6px; border: 1px solid #D4AF37; font-size: 10px; text-transform: uppercase; }
+        td { padding: 5px 6px; border: 1px solid #E5DCC8; }
+        tr:nth-child(even) td { background: #FAF7F2; }
+        @media print { body { padding: 12px; } button { display: none; } }
+        .btn { background: #7B1E2B; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 16px; }
+      </style></head><body>
+      <button class="btn" onclick="window.print()">Print Report</button>
+      <h1>Maharaji Kitchen — Sales / Stock / Payment Report</h1>
+      <div class="meta">Period: <b>${esc(reportType)}</b> | Reference date: <b>${esc(selectedDate)}</b> | Generated: ${new Date().toLocaleString()}</div>
+
+      <div class="kpis">
+        <div class="kpi"><span>Total Bills</span><strong>${metrics.totalBills}</strong></div>
+        <div class="kpi"><span>Gross Sales</span><strong>₹${metrics.totalRevenue.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Stock Expense</span><strong>₹${metrics.totalExpenses.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Net Profit</span><strong>₹${metrics.netProfit.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Avg Bill</span><strong>₹${metrics.averageBill.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Supplier Paid</span><strong>₹${metrics.totalSupplierPayments.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Cash In Hand</span><strong>₹${metrics.inHandCash.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Margin</span><strong>${metrics.margin.toFixed(1)}%</strong></div>
+      </div>
+
+      <h2>Sales — Bills Ledger</h2>
+      <table><thead><tr><th>Invoice</th><th>Table</th><th>Subtotal</th><th>Coupon</th><th>Discount</th><th>Total</th><th>Date</th></tr></thead><tbody>${billRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
+
+      <h2>Item-wise Sales Analytics</h2>
+      <table><thead><tr><th>Dish</th><th>Category</th><th>Qty Sold</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:#888">No items sold</td></tr>'}</tbody></table>
+
+      <h2>Stock Purchases</h2>
+      <table><thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Supplier</th></tr></thead><tbody>${stockRows || '<tr><td colspan="6" style="text-align:center;color:#888">No stock entries</td></tr>'}</tbody></table>
+
+      <h2>Supplier Payments</h2>
+      <table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead><tbody>${paymentRows || '<tr><td colspan="4" style="text-align:center;color:#888">No payments recorded</td></tr>'}</tbody></table>
+      </body></html>`);
+    w.document.close();
+    setTimeout(() => w.focus(), 200);
   };
+
 
   // Handle header categories sorting toggle
   const toggleSorting = (column: string) => {
