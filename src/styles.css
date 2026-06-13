@@ -147,8 +147,9 @@
   --color-maroon-deep: #5C0F1A;
   --color-maroon-royal: #7B1E2B;
   --color-maroon-light: #A03546;
-  --color-gold-rich: #D4AF37;
-  --color-gold-light: #E8C766;
+  /* Darker, high-contrast gold so text reads clearly on light backgrounds */
+  --color-gold-rich: #8B6508;
+  --color-gold-light: #C9A227;
   --color-gold-shimmer: #F5DC8A;
   --color-cream-ivory: #FAF7F2;
   --color-cream-warm: #F2EBDF;
