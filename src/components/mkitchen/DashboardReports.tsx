@@ -1166,23 +1166,51 @@ export const DashboardReports: React.FC = () => {
     }
   };
 
-  // EXPORT 3: CSV backup
+  // EXPORT 3: CSV backup — Point 1: includes item-wise details and highest sales date
   const handleExportCSV = () => {
     setIsExportingCSV(true);
     try {
-      const headers = "Invoice No,Table Number,Subtotal,Discount,Invoice Total,Created At\n";
-      const rows = filteredData.map(b => 
-        `"${b.bill_number}","Table ${b.table_number}",${b.subtotal},${b.discount},${b.total},"${b.created_at}"`
-      ).join("\n");
-      const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+      const lines: string[] = [];
+      lines.push(`Maharaji Kitchen — Sales Report`);
+      lines.push(`Period,${reportType}`);
+      lines.push(`Reference Date,${selectedDate}`);
+      lines.push(`Generated,${new Date().toLocaleString()}`);
+      lines.push("");
+      lines.push("HIGHEST SALES DATE");
+      lines.push("Date,Revenue,Bills Closed");
+      if (topSalesDate) {
+        lines.push(`${topSalesDateStr},${topSalesDateRevenue.toFixed(2)},${topSalesDateBills}`);
+      } else {
+        lines.push("-, -, -");
+      }
+      lines.push("");
+      lines.push("BILLS WITH ITEM-WISE DETAILS");
+      lines.push("Invoice No,Table,Bill Date,Item Name,Quantity,Rate (Rs),Amount (Rs),Bill Subtotal (Rs),Discount (Rs),Bill Total (Rs)");
+      filteredData.forEach(b => {
+        const items = getBillItems(b);
+        if (items.length === 0) {
+          lines.push(`"${b.bill_number}","Table ${b.table_number}","${b.created_at}","(no items)",0,0,0,${b.subtotal},${b.discount},${b.total}`);
+        } else {
+          items.forEach((it, idx) => {
+            // Bill totals only repeated on first line for readability
+            const sub = idx === 0 ? b.subtotal : "";
+            const disc = idx === 0 ? b.discount : "";
+            const tot = idx === 0 ? b.total : "";
+            lines.push(`"${b.bill_number}","Table ${b.table_number}","${b.created_at}","${it.name.replace(/"/g, '""')}",${it.qty},${it.rate.toFixed(2)},${it.amount.toFixed(2)},${sub},${disc},${tot}`);
+          });
+        }
+      });
+      const csv = lines.join("\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.setAttribute("download", `MaharajiKitchen_CSV_${reportType}_${selectedDate}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      toast.success("CSV with item-wise details downloaded.");
     } catch (err) {
-      toast.error("Failed generating flat CSV streams.");
+      toast.error("Failed generating CSV.");
     } finally {
       setIsExportingCSV(false);
     }
