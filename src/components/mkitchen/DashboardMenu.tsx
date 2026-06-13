@@ -29,6 +29,7 @@ export const DashboardMenu: React.FC = () => {
   const [newItemName, setNewItemName] = useState("");
   const [newItemCategory_id, setNewItemCategory_id] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
+  const [newItemFoodType, setNewItemFoodType] = useState<"veg" | "non_veg">("veg");
   const [generatedDesc, setGeneratedDesc] = useState("");
   const [generatedImg, setGeneratedImg] = useState("");
   const [isStepTwoGenerate, setIsStepTwoGenerate] = useState(false);
@@ -41,6 +42,7 @@ export const DashboardMenu: React.FC = () => {
   const [editItemDesc, setEditItemDesc] = useState("");
   const [editItemImg, setEditItemImg] = useState("");
   const [editItemCategoryId, setEditItemCategoryId] = useState("");
+  const [editItemFoodType, setEditItemFoodType] = useState<"veg" | "non_veg">("veg");
 
   // Handle category saves
   const handleSaveCategory = (e: React.FormEvent) => {
