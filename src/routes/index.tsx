@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { useStore } from "@/lib/mk-store";
 import { CustomerInterface } from "@/components/mkitchen/CustomerInterface";
 import { LoginScreen } from "@/components/mkitchen/LoginScreen";
+import { WelcomeScreen } from "@/components/mkitchen/WelcomeScreen";
 import { StaffShell } from "@/components/mkitchen/StaffShell";
 import { UnifiedRoleNavigator } from "@/components/mkitchen/UnifiedRoleNavigator";
 import { DashboardLive } from "@/components/mkitchen/DashboardLive";
