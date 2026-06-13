@@ -2035,86 +2035,131 @@ export const DashboardReports: React.FC = () => {
           </div>
         </Card>
 
-        {/* 7. DETAILED PROFIT & LOSS STOCK COGNITIVE CARD ACCORDION */}
-        <Card className="p-6 bg-[#2D2A26] text-cream-ivory border border-gold-rich/20">
-          <div className="pb-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        {/* 7. SALES / STOCK / PAYMENT P&L + CASH CALCULATION (light theme — high contrast) */}
+        <Card className="p-6 bg-white border border-gold-rich/20 shadow-sm">
+          <div className="pb-3 border-b border-gold-rich/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h4 className="font-serif text-lg font-black text-gold-light leading-none">
-                Gourmet Inventory Profits & Losses (P&L) Ledger
+              <h4 className="font-serif text-lg font-black text-maroon-royal leading-none">
+                Sales / Stock / Payment Reports + Cash Calculation
               </h4>
-              <p className="font-serif italic text-xs text-mocha/80 mt-1">
-                Calculated net operational cash flow for specified report type timeframe
+              <p className="font-serif italic text-xs text-mocha mt-1">
+                Net operational cash flow with stock vs sales comparison
               </p>
             </div>
-            <div className="uppercase font-mono text-[9px] tracking-widest text-gold-rich font-extrabold bg-[#1C1917] px-3.5 py-1 rounded-full border border-gold-rich/10">
-              AUDITED STATEMENT
+            <div className="flex items-center gap-2">
+              <Button
+                variant="gold"
+                size="sm"
+                onClick={() => {
+                  const headers = "Metric,Value (INR)\n";
+                  const rows = [
+                    ["Gross Sales Revenue", metrics.totalRevenue.toFixed(2)],
+                    ["Total Stock Expenditure", metrics.totalExpenses.toFixed(2)],
+                    ["Total Supplier Payments", metrics.totalSupplierPayments.toFixed(2)],
+                    ["Cash In Hand", metrics.inHandCash.toFixed(2)],
+                    ["Net Profit / Loss", metrics.netProfit.toFixed(2)],
+                    ["Profit Margin (%)", metrics.margin.toFixed(2)]
+                  ].map(r => `"${r[0]}",${r[1]}`).join("\n");
+                  const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute("download", `MaharajiKitchen_PnL_${reportType}_${selectedDate}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast.success("P&L + Cash report downloaded!");
+                }}
+                className="py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Report</span>
+              </Button>
+              <div className="uppercase font-mono text-[9px] tracking-widest text-maroon-royal font-extrabold bg-cream-warm px-3.5 py-1 rounded-full border border-gold-rich/30">
+                AUDITED STATEMENT
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            
-            {/* Tile 1: Gross checkouts */}
-            <div className="bg-charcoal-deep p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+
+            {/* Tile 1: Gross sales */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border-2 border-green-200 flex flex-col justify-between shadow-sm">
               <div>
-                <span className="text-[8px] text-mocha/80 font-bold uppercase tracking-widest block">Total Dining Incomes</span>
-                <h5 className="font-mono text-2xl font-black text-white mt-1">₹{metrics.totalRevenue.toLocaleString("en-IN")}</h5>
+                <span className="text-[9px] text-green-700 font-bold uppercase tracking-widest block">Gross Sales</span>
+                <h5 className="font-mono text-xl font-black text-green-800 mt-1">₹{metrics.totalRevenue.toLocaleString("en-IN")}</h5>
               </div>
-              <div className="text-[10px] text-gold-shimmer/80 flex items-center gap-1 mt-3">
-                <TrendingUp className="w-4 h-4 text-green" />
-                <span>Gross restaurant register covers</span>
+              <div className="text-[10px] text-green-700 flex items-center gap-1 mt-3 font-medium">
+                <TrendingUp className="w-4 h-4" />
+                <span>Total dining revenue</span>
               </div>
             </div>
 
-            {/* Tile 2: Material expendatures */}
-            <div className="bg-charcoal-deep p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+            {/* Tile 2: Stock expense */}
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl border-2 border-amber-200 flex flex-col justify-between shadow-sm">
               <div>
-                <span className="text-[8px] text-mocha/80 font-bold uppercase tracking-widest block">Total Material procurements</span>
-                <h5 className="font-mono text-2xl font-black text-neutral-300 mt-1">₹{metrics.totalExpenses.toLocaleString("en-IN")}</h5>
+                <span className="text-[9px] text-amber-800 font-bold uppercase tracking-widest block">Stock Expenditure</span>
+                <h5 className="font-mono text-xl font-black text-amber-900 mt-1">₹{metrics.totalExpenses.toLocaleString("en-IN")}</h5>
               </div>
-              <div className="text-[10px] text-red-400 flex items-center gap-1 mt-3">
-                <Package className="w-4 h-4 text-red-500 animate-pulse" />
-                <span>Raw stock ingredients subtracted</span>
+              <div className="text-[10px] text-amber-800 flex items-center gap-1 mt-3 font-medium">
+                <Package className="w-4 h-4" />
+                <span>Raw materials purchased</span>
               </div>
             </div>
 
-            {/* Tile 3: Net margin */}
-            <div className={`p-5 rounded-2xl border font-sans flex flex-col justify-between ${
-              metrics.netProfit >= 0 ? "bg-green-950/20 border-green-500/20" : "bg-red-950/20 border-red-500/20"
+            {/* Tile 3: Supplier payments / Cash in hand */}
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 p-5 rounded-2xl border-2 border-blue-200 flex flex-col justify-between shadow-sm">
+              <div>
+                <span className="text-[9px] text-blue-800 font-bold uppercase tracking-widest block">Cash In Hand</span>
+                <h5 className="font-mono text-xl font-black text-blue-900 mt-1">₹{metrics.inHandCash.toLocaleString("en-IN")}</h5>
+              </div>
+              <div className="text-[10px] text-blue-800 flex items-center gap-1 mt-3 font-medium">
+                <Receipt className="w-4 h-4" />
+                <span>Sales − Supplier paid (₹{metrics.totalSupplierPayments.toFixed(0)})</span>
+              </div>
+            </div>
+
+            {/* Tile 4: Net profit/loss */}
+            <div className={`p-5 rounded-2xl border-2 flex flex-col justify-between shadow-sm ${
+              metrics.netProfit >= 0
+                ? "bg-gradient-to-br from-maroon-royal/5 to-gold-rich/10 border-maroon-royal/30"
+                : "bg-gradient-to-br from-red-50 to-rose-50 border-red-300"
             }`}>
               <div>
-                <span className="text-[8px] text-[#E8C766]/80 font-bold uppercase tracking-widest block">Net Calculated profits</span>
-                <h5 className={`font-mono text-2xl font-black mt-1 ${metrics.netProfit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                <span className="text-[9px] text-maroon-royal font-bold uppercase tracking-widest block">Net Profit / Loss</span>
+                <h5 className={`font-mono text-xl font-black mt-1 ${metrics.netProfit >= 0 ? "text-maroon-royal" : "text-red-700"}`}>
                   ₹{metrics.netProfit.toLocaleString("en-IN")}
                 </h5>
               </div>
-              <div className="text-[10px] text-[#FAF7F2] font-semibold flex items-center gap-1.5 mt-3">
-                <Sparkles className="w-4 h-4 text-gold-rich animate-spin-slow" />
-                <span>Net Profit margin yield: <span className="underline font-bold text-gold-light">{metrics.margin.toFixed(1)}%</span></span>
+              <div className="text-[10px] text-mocha font-semibold flex items-center gap-1.5 mt-3">
+                <Sparkles className="w-4 h-4 text-gold-rich" />
+                <span>Margin: <span className="font-bold text-maroon-royal">{metrics.margin.toFixed(1)}%</span></span>
               </div>
             </div>
 
           </div>
 
-          {/* Break even details and warnings */}
-          <div className="mt-6 p-4 bg-[#1C1917] rounded-xl border border-gold-rich/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Break even / benchmarks */}
+          <div className="mt-6 p-4 bg-cream-warm/30 rounded-xl border border-gold-rich/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex gap-2 text-xs">
               <Info className="w-5 h-5 text-gold-rich shrink-0" />
               <div>
-                <strong className="block text-gold-light leading-none">Fiscal Margin benchmarks:</strong>
+                <strong className="block text-maroon-royal leading-none">Margin Benchmark:</strong>
                 <span className="text-[10px] text-mocha leading-relaxed">
-                  Maharaji target profit margins are benchmarked at 40%. Direct ingredient procurement ratios are strictly monitored by local supervisor credentials.
+                  Maharaji target profit margin is 40%. Cash-in-hand = Total Sales − Supplier Payments made so far.
                 </span>
               </div>
             </div>
-            
-            <div className="flex gap-2">
-              <div className="text-right flex flex-col justify-center">
-                <span className="text-[8px] text-mocha uppercase block font-bold leading-none">Break-Even Status</span>
-                <span className="text-xs font-bold text-green-400 mt-1 uppercase font-mono">FULLY PROFITABLE</span>
-              </div>
+
+            <div className="text-right">
+              <span className="text-[8px] text-mocha uppercase block font-bold leading-none">Break-Even Status</span>
+              <span className={`text-xs font-bold mt-1 uppercase font-mono ${metrics.netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
+                {metrics.netProfit >= 0 ? "PROFITABLE" : "BELOW BREAK-EVEN"}
+              </span>
             </div>
           </div>
         </Card>
+
+
 
       </div>
 
