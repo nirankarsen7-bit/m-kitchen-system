@@ -1,18 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "@/lib/mk-store";
 import { MaharajiLogo, Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
-import { KeyRound, User, Lock, Sparkles, LogIn, ChevronLeft, CircleAlert as AlertCircle } from "lucide-react";
+import { KeyRound, User, Lock, LogIn, ChevronLeft, CircleAlert as AlertCircle, ShieldCheck } from "lucide-react";
 
-export const LoginScreen: React.FC = () => {
+interface LoginScreenProps {
+  prefilledRole?: "reception" | "admin" | null;
+  onBack?: () => void;
+}
+
+export const LoginScreen: React.FC<LoginScreenProps> = ({ prefilledRole, onBack }) => {
   const login = useStore(state => state.login);
-  const currentUser = useStore(state => state.currentUser);
-
 
   // States
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(prefilledRole === "reception" ? "reception" : "");
+  const [password, setPassword] = useState(prefilledRole === "reception" ? "reception" : "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // If user comes back to login, sync prefilled values
+  useEffect(() => {
+    if (prefilledRole === "reception") {
+      setUsername("reception");
+      setPassword("reception");
+    } else if (prefilledRole === "admin") {
+      setUsername("");
+      setPassword("");
+    }
+  }, [prefilledRole]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
