@@ -18,6 +18,7 @@ export const DashboardLive: React.FC = () => {
   const approvePending = useStore(state => state.approvePendingItem);
   const rejectPending = useStore(state => state.rejectPendingItem);
   const updateStatus = useStore(state => state.updateOrderStatus);
+  const checkoutBill = useStore(state => state.checkoutBill);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -42,12 +43,18 @@ export const DashboardLive: React.FC = () => {
   const occupiedTables = occupiedTablesList.length;
   const occupiedTableNumbers = occupiedTablesList.map(t => t.table_number);
 
-  const handleUpdateStatus = (orderId: string, current: string) => {
+  const handleUpdateStatus = (orderId: string, current: string, tableNumber: number) => {
+    // CRITICAL FIX (point 8): when "served" -> Done/Complete, we must run the full
+    // checkoutBill flow so that: bill is created in history, today's revenue updates,
+    // and the table is automatically LOCKED. Plain updateStatus does NOT do that.
+    if (current === "served") {
+      checkoutBill(tableNumber);
+      return;
+    }
     let nextStatus: typeof orders[0]["status"] = "preparing";
     if (current === "pending") nextStatus = "preparing";
     else if (current === "preparing") nextStatus = "cooking";
     else if (current === "cooking") nextStatus = "served";
-    else if (current === "served") nextStatus = "completed";
 
     updateStatus(orderId, nextStatus);
   };
