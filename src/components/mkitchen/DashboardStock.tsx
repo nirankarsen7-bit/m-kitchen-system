@@ -443,12 +443,7 @@ export const DashboardStock: React.FC = () => {
                                 <IndianRupee className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            <button
-                              onClick={() => deleteStockEntry(s.id)}
-                              className="p-1 rounded bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {/* Point 5: Once a purchase is recorded, it cannot be deleted (audit-safe). */}
                           </td>
                         </tr>
                       );
