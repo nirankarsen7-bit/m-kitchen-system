@@ -113,12 +113,13 @@ export const DashboardMenu: React.FC = () => {
     const priceVal = parseFloat(newItemPrice);
     if (isNaN(priceVal)) return;
 
-    addMenuItem(newItemName, newItemCategory_id, priceVal, generatedDesc, generatedImg);
+    addMenuItem(newItemName, newItemCategory_id, priceVal, generatedDesc, generatedImg, newItemFoodType);
 
     // Reset states
     setNewItemName("");
     setNewItemCategory_id("");
     setNewItemPrice("");
+    setNewItemFoodType("veg");
     setGeneratedDesc("");
     setGeneratedImg("");
     setIsStepTwoGenerate(false);
