@@ -71,6 +71,8 @@ function AppShell() {
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [currentSearch, setCurrentSearch] = useState(window.location.search);
+  // Point 11: Welcome page is shown first; user picks Reception or Admin -> jump to LoginScreen with prefilled role.
+  const [welcomeChoice, setWelcomeChoice] = useState<"reception" | "admin" | null>(null);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -114,9 +116,19 @@ function AppShell() {
   }
 
   if (!isAuthenticated) {
+    // Show premium welcome screen first
+    if (welcomeChoice === null) {
+      return (
+        <>
+          <WelcomeScreen onSelectRole={(role) => setWelcomeChoice(role)} />
+          <UnifiedRoleNavigator />
+          {toasterEl}
+        </>
+      );
+    }
     return (
       <>
-        <LoginScreen />
+        <LoginScreen prefilledRole={welcomeChoice} onBack={() => setWelcomeChoice(null)} />
         <UnifiedRoleNavigator />
         {toasterEl}
       </>
