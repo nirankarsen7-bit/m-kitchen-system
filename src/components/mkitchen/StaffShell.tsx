@@ -66,28 +66,54 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
           sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
-        {/* Core Header area with Brand Crown */}
-        <div className="h-16 flex items-center justify-between border-b border-gold-rich/10 px-4">
+        {/* Core Header area with Brand Logo */}
+        <div className="h-20 flex items-center justify-between border-b border-gold-rich/15 px-3 bg-gradient-to-b from-charcoal-deep to-luxury-dark">
           {!sidebarCollapsed ? (
-            <div className="flex items-center gap-1.5 py-1 text-center truncate">
-              <span className="font-serif font-black tracking-tight text-white flex items-center gap-1 text-sm bg-white/5 px-2 py-1 rounded-lg border border-gold-rich/15">
-                <ShieldCheck className="w-4 h-4 text-gold-rich animate-pulse" />
-                {currentUser.role.toUpperCase()} PORTAL
-              </span>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="flex items-center gap-2.5 truncate"
+            >
+              <MaharajiLogo size="sm" />
+            </motion.div>
           ) : (
-            <div className="text-gold-rich text-center w-full flex justify-center">
-              <span className="text-xs font-mono font-bold tracking-tight">MK</span>
-            </div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              className="text-gold-rich text-center w-full flex justify-center"
+            >
+              <Crown className="w-6 h-6 text-gold-rich animate-pulse" />
+            </motion.div>
           )}
 
-          <button 
+          <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1 rounded bg-white/5 border border-white/10 hover:bg-white/15 text-gold-rich cursor-pointer"
+            className="p-1 rounded bg-white/5 border border-white/10 hover:bg-white/15 text-gold-rich cursor-pointer shrink-0"
           >
             {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
+
+        {/* Premium animated role badge */}
+        {!sidebarCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="px-3 pt-3"
+          >
+            <div className="bg-royal-gradient text-white px-3 py-2 rounded-xl border border-gold-rich/30 shadow-lg flex items-center gap-2 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/20 to-transparent -translate-x-full animate-shimmer-sweep" />
+              <Crown className="w-3.5 h-3.5 text-gold-shimmer animate-pulse relative z-10" />
+              <span className="font-serif font-bold text-[10px] uppercase tracking-[0.18em] relative z-10">
+                {currentUser.role} Portal
+              </span>
+            </div>
+          </motion.div>
+        )}
+
 
         {/* Links listing - strict 1-10 listing using passed tab state */}
         <nav className="flex-1 py-4 px-2 space-y-1.5 overflow-y-auto">
