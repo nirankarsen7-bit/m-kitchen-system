@@ -975,23 +975,8 @@ export const DashboardReports: React.FC = () => {
       summaryRows.forEach(r => drawRow([r[0], r[1]], [110, 70]));
       y += 4;
 
-      // 2. Bills ledger (top 30)
-      sectionTitle("Bills Ledger (latest 30)");
-      drawRow(["Invoice", "Table", "Subtotal", "Discount", "Total", "Date"], [40, 18, 28, 28, 28, 44], true);
-      filteredData.slice(0, 30).forEach(b => {
-        drawRow(
-          [
-            b.bill_number,
-            `T${b.table_number}`,
-            b.subtotal.toFixed(0),
-            b.discount.toFixed(0),
-            b.total.toFixed(0),
-            new Date(b.created_at).toLocaleDateString()
-          ],
-          [40, 18, 28, 28, 28, 44]
-        );
-      });
-      y += 4;
+      // (Itemised bills ledger appears below; old plain ledger removed for clarity.)
+
 
       // 3. Item analytics
       sectionTitle("Top Selling Dishes");
