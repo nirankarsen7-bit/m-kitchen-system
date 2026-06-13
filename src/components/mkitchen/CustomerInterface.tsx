@@ -309,46 +309,51 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
           </Card>
         )}
 
-        {/* 3. Today's Offer Banner - Pulsing / Gold Premium */}
-        {todaysOffers.filter(o => o.is_active).map(offer => (
-          <motion.div
-            key={offer.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-2xl bg-royal-gradient text-cream-ivory relative overflow-hidden shadow-lg border border-gold-rich/30 shadow-maroon-deep/30 group"
-          >
-            {/* Shimmer Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/30 to-transparent -translate-x-full group-hover:animate-shimmer-sweep duration-1000" />
-            
-            <div className="flex items-start gap-3 relative z-10">
-              <div className="p-2 h-9 w-9 flex items-center justify-center bg-gold-gradient rounded-xl text-charcoal-deep border border-gold-rich/40 animate-pulse">
-                <Sparkles className="w-5 h-5 fill-current" />
-              </div>
+        {/* 3. Point 6: PREMIUM ANIMATED OFFER REEL - looping reveal */}
+        {todaysOffers.filter(o => o.is_active).length > 0 && (
+          <div className="relative h-44 rounded-3xl overflow-hidden border-2 border-gold-rich/40 shadow-xl shadow-maroon-deep/20 animate-gold-pulse-glow">
+            {/* Layer 1: "You're Lucky" reveal */}
+            <div className="absolute inset-0 flex items-center justify-center text-center p-4 bg-gradient-to-br from-[#1C1917] via-maroon-deep to-[#3a1a0d] offer-reel-lucky">
               <div>
-                <span className="text-[9px] uppercase tracking-[0.2em] text-gold-light font-bold">Today's Royal Special</span>
-                <h4 className="font-serif text-sm font-bold tracking-tight text-white">{offer.title}</h4>
-                <p className="text-xs text-cream-warm mt-0.5 leading-snug">{offer.subtitle}</p>
+                <div className="text-3xl mb-1.5 animate-bounce">🎉✨🎁</div>
+                <h3 className="font-serif text-lg font-black welcome-title leading-tight">You're Lucky!</h3>
+                <p className="text-xs text-cream-warm mt-1 font-semibold tracking-wide">You got a chance to grab these</p>
+                <p className="text-xs text-gold-shimmer font-bold uppercase tracking-[0.25em] mt-0.5">Royal Offers Today</p>
+              </div>
+              {/* sparkle particles */}
+              <span className="welcome-spark" style={{ left: '15%', top: '20%', ['--sx' as any]: '60px', ['--sy' as any]: '-40px' }} />
+              <span className="welcome-spark" style={{ left: '80%', top: '30%', animationDelay: '0.4s', ['--sx' as any]: '-50px', ['--sy' as any]: '-30px' }} />
+              <span className="welcome-spark" style={{ left: '50%', top: '70%', animationDelay: '0.7s', ['--sx' as any]: '20px', ['--sy' as any]: '-50px' }} />
+            </div>
+
+            {/* Layer 2: Offers reveal */}
+            <div className="absolute inset-0 p-3 bg-gradient-to-br from-maroon-deep via-maroon-royal to-[#3a1a0d] offer-reel-offers overflow-hidden">
+              <div className="grid grid-cols-2 gap-2 h-full">
+                {/* Live offers from store (max 1) */}
+                {todaysOffers.filter(o => o.is_active).slice(0, 1).map(offer => (
+                  <div key={offer.id} className="animate-offer-float bg-gradient-to-br from-cream-ivory to-cream-warm rounded-2xl p-3 border-2 border-gold-rich/50 flex flex-col justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/40 to-transparent -translate-x-full animate-shimmer-sweep" />
+                    <div className="relative z-10">
+                      <span className="text-[8px] uppercase tracking-[0.18em] text-maroon-royal font-black">Royal Special</span>
+                      <h4 className="font-serif text-[13px] font-black text-maroon-deep leading-tight mt-0.5">{offer.title}</h4>
+                      <p className="text-[10px] text-mocha mt-1 leading-snug line-clamp-2">{offer.subtitle}</p>
+                    </div>
+                  </div>
+                ))}
+                {/* Static featured coupon */}
+                <div className="animate-offer-float bg-gradient-to-br from-[#1C1917] to-[#2D2A26] rounded-2xl p-3 border-2 border-gold-rich/50 flex flex-col justify-center relative overflow-hidden" style={{ animationDelay: '0.4s' }}>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/30 to-transparent -translate-x-full animate-shimmer-sweep" />
+                  <div className="relative z-10">
+                    <span className="text-[8px] uppercase tracking-[0.18em] text-gold-shimmer font-black">Captain's Choice</span>
+                    <h4 className="font-serif text-[13px] font-black text-white leading-tight mt-0.5">₹100 OFF</h4>
+                    <p className="text-[10px] text-cream-warm mt-1 leading-snug">Use code <span className="font-mono font-black text-gold-shimmer">WELCOME100</span> above ₹500</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </motion.div>
-        ))}
+          </div>
+        )}
 
-        {/* 4. Visually DISTINCT Coupon Promo Code banner - F7: Renamed to Maharaji Special Discount */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C1917] to-[#2D2A26] text-cream-ivory border-2 border-gold-rich/40 relative overflow-hidden animate-gold-glow">
-          <div className="absolute top-0 right-0 p-1 px-2.5 bg-gold-gradient text-charcoal-deep text-[9px] uppercase font-bold rounded-bl-xl border-l border-b border-gold-rich">
-            CAPTAIN'S CHOICE
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-gold-rich">
-              <Percent className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-[9px] text-gold-light font-bold uppercase tracking-wider">Maharaji Special Discount</span>
-              <h4 className="font-sans text-xs font-bold text-white mt-0.5">Use Code <span className="text-gold-rich uppercase font-mono font-black select-all bg-white/10 p-1 rounded">WELCOME100</span></h4>
-              <p className="text-[10px] text-cream-warm mt-0.5">Get flat ₹100 discount on orders above ₹500.</p>
-            </div>
-          </div>
-        </div>
 
         {/* 5. Custom Search Bar with integrated Voice Recognition */}
         <div className="flex items-center gap-2">
