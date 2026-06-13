@@ -285,6 +285,8 @@ export const useStore = create<AppState>((set, get) => {
   const system = getLocalStorage<typeof DEFAULT_SYSTEM_SETTINGS>("system", DEFAULT_SYSTEM_SETTINGS);
   const posWidth = getLocalStorage<"58mm" | "80mm">("posWidth", "58mm");
   const currentUser = getLocalStorage<User | null>("user", null);
+  const persistedActiveTab = getLocalStorage<string>("activeTab", "live");
+
 
   const saveToStorage = (key: string, data: any) => {
     setLocalStorage(key, data);
