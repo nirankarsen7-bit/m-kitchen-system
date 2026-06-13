@@ -1158,6 +1158,45 @@ export const DashboardReports: React.FC = () => {
       const wsComparisons = XLSX.utils.aoa_to_sheet(sheet9Data);
       XLSX.utils.book_append_sheet(wb, wsComparisons, "Comparisons");
 
+      // Excel Sheet 10 (Point 1): Bills with item-wise breakdown
+      const sheet10Header = [["Invoice No", "Table", "Bill Date", "Item Name", "Qty", "Rate (₹)", "Amount (₹)", "Bill Subtotal (₹)", "Discount (₹)", "Bill Total (₹)", "Coupon"]];
+      const sheet10Rows: any[][] = [];
+      filteredData.forEach(b => {
+        const items = getBillItems(b);
+        if (items.length === 0) {
+          sheet10Rows.push([b.bill_number, `Table ${b.table_number}`, b.created_at, "(no items)", 0, 0, 0, b.subtotal, b.discount, b.total, b.coupon_code || ""]);
+        } else {
+          items.forEach((it, idx) => {
+            sheet10Rows.push([
+              idx === 0 ? b.bill_number : "",
+              idx === 0 ? `Table ${b.table_number}` : "",
+              idx === 0 ? b.created_at : "",
+              it.name, it.qty, it.rate, it.amount,
+              idx === 0 ? b.subtotal : "",
+              idx === 0 ? b.discount : "",
+              idx === 0 ? b.total : "",
+              idx === 0 ? (b.coupon_code || "") : ""
+            ]);
+          });
+        }
+      });
+      const wsBillItems = XLSX.utils.aoa_to_sheet([...sheet10Header, ...sheet10Rows]);
+      XLSX.utils.book_append_sheet(wb, wsBillItems, "Bills (Itemised)");
+
+      // Excel Sheet 11 (Point 1): Daily sales ranked, highlighting top date
+      const sheet11Header = [["Rank", "Date", "Revenue (₹)", "Bills Closed"]];
+      const sheet11Rows = dailySalesSorted.map(([date, v], idx) => [
+        idx === 0 ? "🏆 TOP" : `#${idx + 1}`, date, v.revenue, v.bills
+      ]);
+      const wsDaily = XLSX.utils.aoa_to_sheet([
+        ["HIGHEST SALES DATE ANALYSIS"],
+        [`Top day: ${topSalesDateStr} — ₹${topSalesDateRevenue.toFixed(2)} across ${topSalesDateBills} bills`],
+        [],
+        ...sheet11Header,
+        ...sheet11Rows
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsDaily, "Highest Sales Date");
+
       XLSX.writeFile(wb, `MaharajiKitchen_Report_${reportType}_${selectedDate}.xlsx`);
     } catch (e) {
       toast.error("Error building SheetJS workbook.");
