@@ -1254,6 +1254,14 @@ export const DashboardReports: React.FC = () => {
         <td>${esc(p.supplier || "—")}</td>
       </tr>`).join("");
 
+    const paymentRows = supplierPayments.map(p => `
+      <tr>
+        <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+        <td>${esc(p.payment_method)}</td>
+        <td>${esc(p.reference_number || "—")}</td>
+        <td style="text-align:right;font-weight:bold">₹${p.amount.toFixed(2)}</td>
+      </tr>`).join("");
+
     // Point 1: itemised bill rows - each bill expanded into one row per item plus a totals row
     const billItemRows = filteredData.slice(0, 200).map(b => {
       const items = getBillItems(b);
