@@ -1257,7 +1257,7 @@ export const DashboardReports: React.FC = () => {
 
       {/* 1. REPORT TIME SELECTOR (5 Segmented Control option nodes) */}
       <div className="bg-cream-warm/40 p-2 rounded-2xl border border-gold-rich/10 flex flex-wrap gap-2 justify-center sm:justify-start">
-        {(["Daily", "Weekly", "Monthly", "Yearly", "Custom"] as const).map(type => (
+        {(["Daily", "Custom"] as const).map(type => (
           <button
             key={type}
             onClick={() => {
