@@ -79,6 +79,7 @@ export const DashboardMenu: React.FC = () => {
     setEditItemDesc(item.description);
     setEditItemImg(item.image_url);
     setEditItemCategoryId(item.category_id);
+    setEditItemFoodType(item.food_type === "non_veg" ? "non_veg" : "veg");
     setIsEditItemModalOpen(true);
   };
 
@@ -94,7 +95,8 @@ export const DashboardMenu: React.FC = () => {
       price: priceVal,
       description: editItemDesc,
       image_url: editItemImg,
-      category_id: editItemCategoryId || undefined
+      category_id: editItemCategoryId || undefined,
+      food_type: editItemFoodType
     });
 
     toast.success("Menu item updated successfully!");
