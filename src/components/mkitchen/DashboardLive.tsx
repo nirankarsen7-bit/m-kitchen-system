@@ -219,7 +219,7 @@ export const DashboardLive: React.FC = () => {
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => handleUpdateStatus(order.id, order.status)}
+                          onClick={() => handleUpdateStatus(order.id, order.status, order.table_number)}
                           className="px-3.5 py-1.5 text-[10px] uppercase tracking-wider font-bold"
                         >
                           <Flame className="w-3.5 h-3.5" />
