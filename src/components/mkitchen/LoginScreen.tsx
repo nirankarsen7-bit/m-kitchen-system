@@ -6,7 +6,7 @@ import { KeyRound, User, Lock, Sparkles, LogIn, ChevronLeft, CircleAlert as Aler
 export const LoginScreen: React.FC = () => {
   const login = useStore(state => state.login);
   const currentUser = useStore(state => state.currentUser);
-  const setActiveTab = useStore(state => state.setActiveTab);
+
 
   // States
   const [username, setUsername] = useState("");
@@ -31,19 +31,14 @@ export const LoginScreen: React.FC = () => {
       setLoading(false);
 
       if (success) {
-        // Find active role and set active tab
-        const user = useStore.getState().currentUser;
-        if (user?.role === "admin") {
-          setActiveTab("live");
-        } else {
-          setActiveTab("live");
-        }
+        // Keep persisted activeTab — do not force "live" on every login.
       } else {
         // Red shake feedback trigger
         setError("Invalid royal credentials. Please retry.");
       }
     }, 800);
   };
+
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-6 bg-cream-soft font-sans text-espresso select-none">

@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { useStore } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Calendar, ArrowUpRight, TrendingUp, Upload, X, IndianRupee, CreditCard, Image as ImageIcon } from "lucide-react";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight } from "lucide-react";
 import { UserRole } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
@@ -14,13 +14,26 @@ export const DashboardStock: React.FC = () => {
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
 
+  // F11 / F8: Material usage tracking
+  const menuItems = useStore(state => state.menuItems);
+  const materialUsages = useStore(state => state.materialUsages);
+  const addMaterialUsage = useStore(state => state.addMaterialUsage);
+  const deleteMaterialUsage = useStore(state => state.deleteMaterialUsage);
+  const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
+
   // Form States
   const [itemName, setItemName] = useState("");
   const [qty, setQty] = useState("");
-  const [unit, setUnit] = useState("kg"); // F15: default to kg, grams option added, cans removed
+  const [unit, setUnit] = useState("kg");
   const [unitPrice, setUnitPrice] = useState("");
   const [supplier, setSupplier] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Material usage form states
+  const [muMenuItemId, setMuMenuItemId] = useState("");
+  const [muMaterialName, setMuMaterialName] = useState("");
+  const [muQtyPerPlate, setMuQtyPerPlate] = useState("");
+  const [muUnit, setMuUnit] = useState("g");
 
   // Supplier Payment Modal States (F16)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -39,6 +52,30 @@ export const DashboardStock: React.FC = () => {
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
+
+  // Calculate low stock from store helper
+  const lowStockList = getLowStockMaterials();
+
+  const handleSaveMaterialUsage = (e: React.FormEvent) => {
+    e.preventDefault();
+    const qtyVal = parseFloat(muQtyPerPlate);
+    if (!muMenuItemId || !muMaterialName.trim() || isNaN(qtyVal) || qtyVal <= 0) {
+      toast.error("Please select a dish, material name and valid per-plate quantity.");
+      return;
+    }
+    addMaterialUsage({
+      menu_item_id: muMenuItemId,
+      material_name: muMaterialName.trim(),
+      quantity_per_plate: qtyVal,
+      unit: muUnit
+    });
+    setMuMenuItemId("");
+    setMuMaterialName("");
+    setMuQtyPerPlate("");
+    setMuUnit("g");
+    toast.success("Material per-plate usage saved!");
+  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,9 +352,10 @@ export const DashboardStock: React.FC = () => {
               className="w-full py-3 text-xs uppercase font-bold tracking-wider"
             >
               <Plus className="w-4 h-4" />
-              <span>Record stock checkin</span>
+              <span>Record Stock</span>
             </Button>
           </form>
+
         </div>
 
         {/* Right ledger list table (8 cols) */}
@@ -424,16 +462,173 @@ export const DashboardStock: React.FC = () => {
 
       </div>
 
+      {/* F8: LOW STOCK ALERTS (auto-computed from per-plate usage vs purchases vs sales) */}
+      {lowStockList.length > 0 && (
+        <div className="border-t-2 border-warning/30 pt-6">
+          <div className="bg-red-50 border-2 border-warning rounded-2xl p-5 space-y-3 shadow-lg">
+            <h4 className="font-serif text-base font-bold text-warning flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
+              Low Stock Alerts ({lowStockList.length})
+            </h4>
+            <p className="text-[11px] text-mocha leading-relaxed">
+              These raw materials are running low based on per-plate usage vs current stock vs sales recorded.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStockList.map((ls, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-xl border border-warning/30">
+                  <div className="font-bold text-espresso text-sm">{ls.material}</div>
+                  <div className="text-[10px] text-mocha mt-1">
+                    Stock left: <span className="font-mono font-bold text-warning">{ls.currentStock.toFixed(2)} {ls.unit}</span>
+                  </div>
+                  <div className="text-[10px] text-mocha">
+                    Est. usage so far: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* F11: RAW MATERIAL PER-PLATE USAGE TRACKING (Admin only) */}
+      {isAdmin && (
+        <div className="border-t border-gold-rich/15 pt-6 space-y-4">
+          <div>
+            <h3 className="font-serif text-xl font-bold text-maroon-royal flex items-center gap-1.5">
+              <Scale className="w-5 h-5 text-gold-rich" />
+              Raw Material Per-Plate Usage Tracking
+            </h3>
+            <p className="text-xs text-mocha mt-1">
+              Define how much of each raw material is used per plate for each menu item. The system uses this with sales data to compute low-stock alerts automatically.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left: Add form */}
+            <form onSubmit={handleSaveMaterialUsage} className="lg:col-span-5 bg-white p-5 rounded-2xl border border-gold-rich/10 shadow-sm space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
+                Add Per-Plate Usage
+              </h4>
+
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Menu Item (Dish)</label>
+                <select
+                  value={muMenuItemId}
+                  onChange={(e) => setMuMenuItemId(e.target.value)}
+                  className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
+                  required
+                >
+                  <option value="">— Select a menu dish —</option>
+                  {menuItems.map(mi => (
+                    <option key={mi.id} value={mi.id}>{mi.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <FormInput
+                label="Raw Material Name"
+                value={muMaterialName}
+                onChange={(e) => setMuMaterialName(e.target.value)}
+                placeholder="eg. Paneer, Basmati Rice, Mustard Oil"
+                required
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput
+                  label="Qty Per Plate"
+                  type="number"
+                  value={muQtyPerPlate}
+                  onChange={(e) => setMuQtyPerPlate(e.target.value)}
+                  placeholder="eg. 120"
+                  required
+                />
+                <div>
+                  <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Unit</label>
+                  <select
+                    value={muUnit}
+                    onChange={(e) => setMuUnit(e.target.value)}
+                    className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
+                  >
+                    <option value="g">Grams (g)</option>
+                    <option value="kg">Kilograms (kg)</option>
+                    <option value="ml">Millilitres (ml)</option>
+                    <option value="litres">Litres (L)</option>
+                    <option value="units">Units (pcs)</option>
+                  </select>
+                </div>
+              </div>
+
+              <Button type="submit" variant="primary" className="w-full py-3 text-xs uppercase font-bold tracking-wider">
+                <Plus className="w-4 h-4" />
+                <span>Save Usage Recipe</span>
+              </Button>
+            </form>
+
+            {/* Right: List of saved usages */}
+            <div className="lg:col-span-7 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
+                Saved Per-Plate Recipes ({materialUsages.length})
+              </h4>
+
+              {materialUsages.length === 0 ? (
+                <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
+                  <ChefHat className="w-8 h-8 text-gold-rich/40 mx-auto" />
+                  <p className="text-[11px] text-mocha mt-2">No per-plate recipes saved yet. Add the first one on the left.</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-gold-rich/10 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto max-h-[320px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-[#FAF7F2]">
+                        <tr className="text-[9px] uppercase font-bold tracking-wider text-maroon-royal border-b border-gold-rich/10">
+                          <th className="p-3">Menu Dish</th>
+                          <th className="p-3">Material</th>
+                          <th className="p-3">Per Plate</th>
+                          <th className="p-3">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gold-rich/5 text-xs">
+                        {materialUsages.map(mu => {
+                          const dish = menuItems.find(m => m.id === mu.menu_item_id);
+                          return (
+                            <tr key={mu.id} className="hover:bg-[#FAF7F2]/40">
+                              <td className="p-3 font-semibold text-espresso">{dish?.name || "Unknown dish"}</td>
+                              <td className="p-3 text-mocha">{mu.material_name}</td>
+                              <td className="p-3 font-mono font-bold text-maroon-royal">{mu.quantity_per_plate} {mu.unit}</td>
+                              <td className="p-3">
+                                <button
+                                  onClick={() => deleteMaterialUsage(mu.id)}
+                                  className="p-1 rounded bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
       {/* F16: Supplier Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 -mt-2 pt-2 pb-2">
               <h3 className="font-serif text-lg font-bold text-maroon-royal">Record Supplier Payment</h3>
               <button onClick={() => setShowPaymentModal(false)} className="text-mocha hover:text-maroon-royal">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
 
             <div className="space-y-4">
               <FormInput
@@ -481,7 +676,7 @@ export const DashboardStock: React.FC = () => {
                 <div className="border-2 border-dashed border-gold-rich/20 rounded-xl p-4 text-center">
                   {paymentProofImage ? (
                     <div className="space-y-2">
-                      <img src={paymentProofImage} alt="Payment Proof" className="max-h-32 mx-auto rounded-lg" />
+                      <img src={paymentProofImage} alt="Payment Proof" className="max-h-20 mx-auto rounded-lg object-contain" />
                       <button
                         type="button"
                         onClick={() => setPaymentProofImage(null)}
@@ -490,6 +685,7 @@ export const DashboardStock: React.FC = () => {
                         Remove Image
                       </button>
                     </div>
+
                   ) : (
                     <div>
                       <input

@@ -77,12 +77,11 @@ function AppShell() {
       setCurrentSearch(window.location.search);
     };
     window.addEventListener("popstate", handleLocationChange);
-    const interval = setInterval(handleLocationChange, 400);
     return () => {
       window.removeEventListener("popstate", handleLocationChange);
-      clearInterval(interval);
     };
   }, []);
+
 
   const toasterEl = (
     <Toaster

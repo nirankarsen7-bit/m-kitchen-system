@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "@/lib/mk-store";
+import { UserRole } from "@/lib/mk-types";
 import { MaharajiLogo, Button } from "@/components/mkitchen/PremiumUI";
 import { motion, AnimatePresence } from "motion/react";
-import { Hop as Home, Grid2x2 as Grid, ClipboardList, ChefHat, Gift, Package, FileText, ChartBar as BarChart3, QrCode, Settings, LogOut, Clock, User, Menu, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { Hop as Home, Grid2x2 as Grid, ClipboardList, ChefHat, Gift, Package, FileText, ChartBar as BarChart3, QrCode, Settings, LogOut, Clock, User, Menu, ChevronLeft, ChevronRight, Crown } from "lucide-react";
 
 interface ShellProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }
+
 
 export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiveTab }) => {
   const currentUser = useStore(state => state.currentUser);
@@ -35,18 +37,21 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
   // Exact 10 sidebar links aligned with activeTab identifiers in App
   // F19: POS Settings renamed to System Settings
   // F7: Today's Offer renamed to Maharaji Special Discount
-  const sidebarItems = [
-    { name: "Live Dashboard", path: "live", icon: <Home className="w-5 h-5" /> },
-    { name: "Table Management", path: "tables", icon: <Grid className="w-5 h-5" /> },
-    { name: "Active Orders", path: "checkout", icon: <ClipboardList className="w-5 h-5" /> },
-    { name: "Menu Management", path: "menu", icon: <ChefHat className="w-5 h-5" /> },
-    { name: "Maharaji Special Discount", path: "offers", icon: <Gift className="w-5 h-5" /> },
-    { name: "Stock / Materials", path: "stock", icon: <Package className="w-5 h-5" /> },
-    { name: "Bills & History", path: "archive", icon: <FileText className="w-5 h-5" /> },
-    { name: "Reports & Stats", path: "stats", icon: <BarChart3 className="w-5 h-5" /> },
-    { name: "Table QR Codes", path: "qr", icon: <QrCode className="w-5 h-5" /> },
-    { name: "System Settings", path: "config", icon: <Settings className="w-5 h-5" /> }
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+  const allSidebarItems = [
+    { name: "Live Dashboard", path: "live", icon: <Home className="w-5 h-5" />, adminOnly: false },
+    { name: "Table Management", path: "tables", icon: <Grid className="w-5 h-5" />, adminOnly: false },
+    { name: "Active Orders", path: "checkout", icon: <ClipboardList className="w-5 h-5" />, adminOnly: false },
+    { name: "Menu Management", path: "menu", icon: <ChefHat className="w-5 h-5" />, adminOnly: false },
+    { name: "Maharaji Special Discount", path: "offers", icon: <Gift className="w-5 h-5" />, adminOnly: true },
+    { name: "Stock / Materials", path: "stock", icon: <Package className="w-5 h-5" />, adminOnly: false },
+    { name: "Bills & History", path: "archive", icon: <FileText className="w-5 h-5" />, adminOnly: false },
+    { name: "Reports & Stats", path: "stats", icon: <BarChart3 className="w-5 h-5" />, adminOnly: false },
+    { name: "Table QR Codes", path: "qr", icon: <QrCode className="w-5 h-5" />, adminOnly: false },
+    { name: "System Settings", path: "config", icon: <Settings className="w-5 h-5" />, adminOnly: true }
   ];
+  const sidebarItems = allSidebarItems.filter(item => !item.adminOnly || isAdmin);
+
 
   const handleLogout = () => {
     logout();
@@ -61,28 +66,54 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
           sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
-        {/* Core Header area with Brand Crown */}
-        <div className="h-16 flex items-center justify-between border-b border-gold-rich/10 px-4">
+        {/* Core Header area with Brand Logo */}
+        <div className="h-20 flex items-center justify-between border-b border-gold-rich/15 px-3 bg-gradient-to-b from-charcoal-deep to-luxury-dark">
           {!sidebarCollapsed ? (
-            <div className="flex items-center gap-1.5 py-1 text-center truncate">
-              <span className="font-serif font-black tracking-tight text-white flex items-center gap-1 text-sm bg-white/5 px-2 py-1 rounded-lg border border-gold-rich/15">
-                <ShieldCheck className="w-4 h-4 text-gold-rich animate-pulse" />
-                {currentUser.role.toUpperCase()} PORTAL
-              </span>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="flex items-center gap-2.5 truncate"
+            >
+              <MaharajiLogo size="sm" />
+            </motion.div>
           ) : (
-            <div className="text-gold-rich text-center w-full flex justify-center">
-              <span className="text-xs font-mono font-bold tracking-tight">MK</span>
-            </div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              className="text-gold-rich text-center w-full flex justify-center"
+            >
+              <Crown className="w-6 h-6 text-gold-rich animate-pulse" />
+            </motion.div>
           )}
 
-          <button 
+          <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1 rounded bg-white/5 border border-white/10 hover:bg-white/15 text-gold-rich cursor-pointer"
+            className="p-1 rounded bg-white/5 border border-white/10 hover:bg-white/15 text-gold-rich cursor-pointer shrink-0"
           >
             {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
+
+        {/* Premium animated role badge */}
+        {!sidebarCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="px-3 pt-3"
+          >
+            <div className="bg-royal-gradient text-white px-3 py-2 rounded-xl border border-gold-rich/30 shadow-lg flex items-center gap-2 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/20 to-transparent -translate-x-full animate-shimmer-sweep" />
+              <Crown className="w-3.5 h-3.5 text-gold-shimmer animate-pulse relative z-10" />
+              <span className="font-serif font-bold text-[10px] uppercase tracking-[0.18em] relative z-10">
+                {currentUser.role} Portal
+              </span>
+            </div>
+          </motion.div>
+        )}
+
 
         {/* Links listing - strict 1-10 listing using passed tab state */}
         <nav className="flex-1 py-4 px-2 space-y-1.5 overflow-y-auto">
@@ -223,10 +254,19 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="font-serif font-black text-maroon-royal flex items-baseline gap-1 md:text-lg">
-              <span className="bg-royal-gradient text-transparent bg-clip-text font-black">MAHARAJI KITCHEN</span>
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="font-serif font-black text-maroon-royal flex items-center gap-2 md:text-lg relative"
+            >
+              <Crown className="w-5 h-5 text-gold-rich animate-pulse" />
+              <span className="bg-royal-gradient text-transparent bg-clip-text font-black tracking-wide relative overflow-hidden">
+                MAHARAJI KITCHEN
+              </span>
               <span className="text-[10px] md:text-xs font-accent italic text-mocha capitalize">({currentUser.role})</span>
-            </div>
+            </motion.div>
+
           </div>
 
           <div className="flex items-center gap-4">

@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+// html2canvas removed — PDF now uses structured jsPDF (avoids unsupported oklch CSS color crash).
 import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "@/lib/mk-types";
 
 // Dynamic Pseudo-random generator for high-fidelity deterministic fallback seed history
@@ -840,56 +840,144 @@ export const DashboardReports: React.FC = () => {
     );
   };
 
-  // EXPORT 1: PDF Download (jspdf + html2canvas)
+  // EXPORT 1: PDF Download - structured text + tables (no html2canvas, no oklch issues)
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
     try {
-      const dashboardElement = document.getElementById("reports-dashboard-view");
-      if (!dashboardElement) return;
-
-      // Render high-res canvas scale
-      const canvas = await html2canvas(dashboardElement, {
-        scale: 1.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#FAF7F2"
-      });
-
-      const imgData = canvas.toDataURL("image/jpeg", 0.9);
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const finalW = imgWidth * ratio;
-      const finalH = imgHeight * ratio;
+      const marginX = 12;
+      let y = 0;
 
-      pdf.setFillColor("#7B1E2B");
-      pdf.rect(0, 0, pdfWidth, 12, "F");
-      pdf.setTextColor("#D4AF37");
-      pdf.setFont("serif", "bold");
+      // Header band
+      pdf.setFillColor(123, 30, 43);
+      pdf.rect(0, 0, pdfWidth, 18, "F");
+      pdf.setTextColor(212, 175, 55);
+      pdf.setFont("helvetica", "bold");
       pdf.setFontSize(14);
-      pdf.text("MAHARAJI KITCHEN - AUDITED ANALYTICS DOSSIER", 12, 8);
+      pdf.text("MAHARAJI KITCHEN", marginX, 8);
+      pdf.setFontSize(9);
+      pdf.setTextColor(250, 247, 242);
+      pdf.text("Sales / Stock / Payment Report", marginX, 14);
+      pdf.text(`Period: ${reportType} (${selectedDate})`, pdfWidth - marginX, 14, { align: "right" });
 
-      pdf.addImage(imgData, "JPEG", 0, 15, finalW, finalH);
-      
-      // Page styling additions
-      pdf.setFillColor("#7B1E2B");
-      pdf.rect(0, pdfHeight - 12, pdfWidth, 12, "F");
-      pdf.setTextColor("#FAF7F2");
-      pdf.setFontSize(8);
-      pdf.text(`NH31c West Bengal • +91 70764 30467 • Printed: ${new Date().toLocaleString()}`, 12, pdfHeight - 5);
+      y = 26;
+
+      const ensureSpace = (need: number) => {
+        if (y + need > pdfHeight - 18) {
+          pdf.addPage();
+          y = 18;
+        }
+      };
+
+      const sectionTitle = (title: string) => {
+        ensureSpace(10);
+        pdf.setFillColor(245, 240, 230);
+        pdf.rect(marginX, y - 4, pdfWidth - marginX * 2, 7, "F");
+        pdf.setTextColor(123, 30, 43);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.text(title, marginX + 2, y + 1);
+        y += 8;
+      };
+
+      const drawRow = (cells: string[], widths: number[], bold = false) => {
+        ensureSpace(7);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(45, 24, 16);
+        let cx = marginX;
+        cells.forEach((c, i) => {
+          pdf.text(String(c), cx + 1, y + 4);
+          cx += widths[i];
+        });
+        pdf.setDrawColor(220, 210, 195);
+        pdf.line(marginX, y + 6, pdfWidth - marginX, y + 6);
+        y += 6;
+      };
+
+      // 1. Executive Summary
+      sectionTitle("Executive Summary");
+      const summaryRows: [string, string][] = [
+        ["Total Closed Invoices", String(metrics.totalBills)],
+        ["Gross Sales Revenue", `Rs. ${metrics.totalRevenue.toFixed(2)}`],
+        ["Average Bill", `Rs. ${metrics.averageBill.toFixed(2)}`],
+        ["Total Stock Expenditure", `Rs. ${metrics.totalExpenses.toFixed(2)}`],
+        ["Total Supplier Payments", `Rs. ${metrics.totalSupplierPayments.toFixed(2)}`],
+        ["Cash In Hand", `Rs. ${metrics.inHandCash.toFixed(2)}`],
+        ["Net Profit / Loss", `Rs. ${metrics.netProfit.toFixed(2)}`],
+        ["Profit Margin", `${metrics.margin.toFixed(2)}%`],
+        ["Top Dish", `${metrics.topItem.name} (${metrics.topItem.qty} units)`]
+      ];
+      summaryRows.forEach(r => drawRow([r[0], r[1]], [110, 70]));
+      y += 4;
+
+      // 2. Bills ledger (top 30)
+      sectionTitle("Bills Ledger (latest 30)");
+      drawRow(["Invoice", "Table", "Subtotal", "Discount", "Total", "Date"], [40, 18, 28, 28, 28, 44], true);
+      filteredData.slice(0, 30).forEach(b => {
+        drawRow(
+          [
+            b.bill_number,
+            `T${b.table_number}`,
+            b.subtotal.toFixed(0),
+            b.discount.toFixed(0),
+            b.total.toFixed(0),
+            new Date(b.created_at).toLocaleDateString()
+          ],
+          [40, 18, 28, 28, 28, 44]
+        );
+      });
+      y += 4;
+
+      // 3. Item analytics
+      sectionTitle("Top Selling Dishes");
+      drawRow(["Dish", "Category", "Qty Sold", "Revenue"], [80, 50, 25, 31], true);
+      metrics.itemsAnalytics.slice(0, 25).forEach(it => {
+        drawRow([it.name, it.category, String(it.qty), `Rs.${it.revenue.toFixed(0)}`], [80, 50, 25, 31]);
+      });
+      y += 4;
+
+      // 4. Stock purchases
+      sectionTitle("Stock Purchases");
+      drawRow(["Date", "Item", "Qty", "Unit Price", "Total", "Supplier"], [26, 60, 22, 24, 24, 30], true);
+      parsedData.purchases.slice(0, 30).forEach(p => {
+        drawRow(
+          [
+            new Date(p.date).toLocaleDateString(),
+            p.item_name,
+            `${p.quantity}${p.unit}`,
+            `Rs.${p.unit_price}`,
+            `Rs.${p.total.toFixed(0)}`,
+            p.supplier || "-"
+          ],
+          [26, 60, 22, 24, 24, 30]
+        );
+      });
+
+      // Footer band on each page
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFillColor(123, 30, 43);
+        pdf.rect(0, pdfHeight - 10, pdfWidth, 10, "F");
+        pdf.setTextColor(250, 247, 242);
+        pdf.setFontSize(8);
+        pdf.text(`Maharaji Kitchen | Generated: ${new Date().toLocaleString()}`, marginX, pdfHeight - 4);
+        pdf.text(`Page ${i} / ${pageCount}`, pdfWidth - marginX, pdfHeight - 4, { align: "right" });
+      }
 
       pdf.save(`MaharajiKitchen_Report_${reportType}_${selectedDate}.pdf`);
+      toast.success("PDF report generated successfully!");
     } catch (e) {
-      toast.error("Error printing high-definition graphics. Generating standard print window.");
+      console.error(e);
+      toast.error("Failed to generate PDF report. Please try again.");
     } finally {
       setIsExportingPDF(false);
     }
   };
+
 
   // EXPORT 2: Excel Downloader with EXACTLY 9 Sheets
   const handleExportExcel = () => {
@@ -1017,10 +1105,102 @@ export const DashboardReports: React.FC = () => {
     }
   };
 
-  // Master browser printing
+  // Master print: open a clean printable window with full sales/stock/payment data tables
   const handlePrintFullReport = () => {
-    window.print();
+    const w = window.open("", "_blank", "width=1024,height=768");
+    if (!w) {
+      toast.error("Pop-up blocked. Please allow pop-ups to print the report.");
+      return;
+    }
+    const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+    const billRows = filteredData.slice(0, 200).map(b => `
+      <tr>
+        <td>${esc(b.bill_number)}</td>
+        <td>Table ${esc(b.table_number)}</td>
+        <td style="text-align:right">₹${b.subtotal.toFixed(2)}</td>
+        <td>${esc(b.coupon_code || "—")}</td>
+        <td style="text-align:right">₹${b.discount.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:bold">₹${b.total.toFixed(2)}</td>
+        <td>${new Date(b.created_at).toLocaleString()}</td>
+      </tr>`).join("");
+
+    const itemRows = metrics.itemsAnalytics.map(i => `
+      <tr>
+        <td>${esc(i.name)}</td>
+        <td>${esc(i.category)}</td>
+        <td style="text-align:right">${i.qty}</td>
+        <td style="text-align:right">${i.orders}</td>
+        <td style="text-align:right;font-weight:bold">₹${i.revenue.toFixed(2)}</td>
+      </tr>`).join("");
+
+    const stockRows = parsedData.purchases.map(p => `
+      <tr>
+        <td>${new Date(p.date).toLocaleDateString()}</td>
+        <td>${esc(p.item_name)}</td>
+        <td>${p.quantity} ${esc(p.unit)}</td>
+        <td style="text-align:right">₹${p.unit_price.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:bold">₹${p.total.toFixed(2)}</td>
+        <td>${esc(p.supplier || "—")}</td>
+      </tr>`).join("");
+
+    const paymentRows = supplierPayments.map(p => `
+      <tr>
+        <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+        <td>${esc(p.payment_method)}</td>
+        <td>${esc(p.reference_number || "—")}</td>
+        <td style="text-align:right;font-weight:bold">₹${p.amount.toFixed(2)}</td>
+      </tr>`).join("");
+
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8" />
+      <title>Maharaji Kitchen - Sales Report ${esc(reportType)} ${esc(selectedDate)}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; color: #2D1810; padding: 24px; margin: 0; }
+        h1 { font-family: Georgia, serif; color: #7B1E2B; margin: 0 0 4px; }
+        h2 { font-family: Georgia, serif; color: #7B1E2B; margin: 24px 0 8px; border-bottom: 2px solid #D4AF37; padding-bottom: 4px; font-size: 16px; }
+        .meta { color: #5C4033; font-size: 12px; margin-bottom: 12px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+        .kpi { border: 1px solid #D4AF37; padding: 8px; border-radius: 6px; }
+        .kpi span { display: block; font-size: 10px; color: #5C4033; text-transform: uppercase; font-weight: bold; }
+        .kpi strong { display: block; font-size: 16px; color: #7B1E2B; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+        th { background: #FAF0E5; color: #7B1E2B; text-align: left; padding: 6px; border: 1px solid #D4AF37; font-size: 10px; text-transform: uppercase; }
+        td { padding: 5px 6px; border: 1px solid #E5DCC8; }
+        tr:nth-child(even) td { background: #FAF7F2; }
+        @media print { body { padding: 12px; } button { display: none; } }
+        .btn { background: #7B1E2B; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 16px; }
+      </style></head><body>
+      <button class="btn" onclick="window.print()">Print Report</button>
+      <h1>Maharaji Kitchen — Sales / Stock / Payment Report</h1>
+      <div class="meta">Period: <b>${esc(reportType)}</b> | Reference date: <b>${esc(selectedDate)}</b> | Generated: ${new Date().toLocaleString()}</div>
+
+      <div class="kpis">
+        <div class="kpi"><span>Total Bills</span><strong>${metrics.totalBills}</strong></div>
+        <div class="kpi"><span>Gross Sales</span><strong>₹${metrics.totalRevenue.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Stock Expense</span><strong>₹${metrics.totalExpenses.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Net Profit</span><strong>₹${metrics.netProfit.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Avg Bill</span><strong>₹${metrics.averageBill.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Supplier Paid</span><strong>₹${metrics.totalSupplierPayments.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Cash In Hand</span><strong>₹${metrics.inHandCash.toFixed(2)}</strong></div>
+        <div class="kpi"><span>Margin</span><strong>${metrics.margin.toFixed(1)}%</strong></div>
+      </div>
+
+      <h2>Sales — Bills Ledger</h2>
+      <table><thead><tr><th>Invoice</th><th>Table</th><th>Subtotal</th><th>Coupon</th><th>Discount</th><th>Total</th><th>Date</th></tr></thead><tbody>${billRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
+
+      <h2>Item-wise Sales Analytics</h2>
+      <table><thead><tr><th>Dish</th><th>Category</th><th>Qty Sold</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:#888">No items sold</td></tr>'}</tbody></table>
+
+      <h2>Stock Purchases</h2>
+      <table><thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Supplier</th></tr></thead><tbody>${stockRows || '<tr><td colspan="6" style="text-align:center;color:#888">No stock entries</td></tr>'}</tbody></table>
+
+      <h2>Supplier Payments</h2>
+      <table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead><tbody>${paymentRows || '<tr><td colspan="4" style="text-align:center;color:#888">No payments recorded</td></tr>'}</tbody></table>
+      </body></html>`);
+    w.document.close();
+    setTimeout(() => w.focus(), 200);
   };
+
 
   // Handle header categories sorting toggle
   const toggleSorting = (column: string) => {
@@ -1077,7 +1257,7 @@ export const DashboardReports: React.FC = () => {
 
       {/* 1. REPORT TIME SELECTOR (5 Segmented Control option nodes) */}
       <div className="bg-cream-warm/40 p-2 rounded-2xl border border-gold-rich/10 flex flex-wrap gap-2 justify-center sm:justify-start">
-        {(["Daily", "Weekly", "Monthly", "Yearly", "Custom"] as const).map(type => (
+        {(["Daily", "Custom"] as const).map(type => (
           <button
             key={type}
             onClick={() => {
@@ -1666,24 +1846,51 @@ export const DashboardReports: React.FC = () => {
               <span className="text-[10px] font-mono text-mocha mt-1.5 block">Itemized yields, cover counts, and trending matrices</span>
             </div>
 
-            {/* Quick table search with mic */}
-            <div className="relative flex items-center max-w-xs w-full bg-cream-warm/15 rounded-xl border border-gold-rich/15 px-3 py-1.5">
-              <Search className="w-4 h-4 text-mocha mr-2" />
-              <input
-                type="text"
-                value={filterItemName}
-                onChange={(e) => setFilterItemName(e.target.value)}
-                placeholder="Search analytics items..."
-                className="w-full text-xs text-espresso focus:outline-none bg-transparent"
-              />
-              <button 
-                onClick={() => listenVoiceInput("item")}
-                className={`p-1 rounded-full ${micState.active && micState.target === "item" ? "text-red-600 bg-red-100" : "text-mocha"}`}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Quick table search with mic */}
+              <div className="relative flex items-center max-w-xs w-full bg-cream-warm/15 rounded-xl border border-gold-rich/15 px-3 py-1.5">
+                <Search className="w-4 h-4 text-mocha mr-2" />
+                <input
+                  type="text"
+                  value={filterItemName}
+                  onChange={(e) => setFilterItemName(e.target.value)}
+                  placeholder="Search analytics items..."
+                  className="w-full text-xs text-espresso focus:outline-none bg-transparent"
+                />
+                <button
+                  onClick={() => listenVoiceInput("item")}
+                  className={`p-1 rounded-full ${micState.active && micState.target === "item" ? "text-red-600 bg-red-100" : "text-mocha"}`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Dedicated download button for this table (CSV of item analytics) */}
+              <Button
+                variant="gold"
+                size="sm"
+                onClick={() => {
+                  const headers = "Dish,Category,Qty Sold,Orders,Revenue (INR)\n";
+                  const rows = metrics.itemsAnalytics.map(i =>
+                    `"${i.name}","${i.category}",${i.qty},${i.orders},${i.revenue.toFixed(2)}`
+                  ).join("\n");
+                  const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute("download", `MaharajiKitchen_ItemAnalytics_${reportType}_${selectedDate}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast.success("Item analytics report downloaded!");
+                }}
+                className="py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
               >
-                <Mic className="w-3.5 h-3.5" />
-              </button>
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Report</span>
+              </Button>
             </div>
           </div>
+
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-espresso">
@@ -1828,86 +2035,131 @@ export const DashboardReports: React.FC = () => {
           </div>
         </Card>
 
-        {/* 7. DETAILED PROFIT & LOSS STOCK COGNITIVE CARD ACCORDION */}
-        <Card className="p-6 bg-[#2D2A26] text-cream-ivory border border-gold-rich/20">
-          <div className="pb-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        {/* 7. SALES / STOCK / PAYMENT P&L + CASH CALCULATION (light theme — high contrast) */}
+        <Card className="p-6 bg-white border border-gold-rich/20 shadow-sm">
+          <div className="pb-3 border-b border-gold-rich/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h4 className="font-serif text-lg font-black text-gold-light leading-none">
-                Gourmet Inventory Profits & Losses (P&L) Ledger
+              <h4 className="font-serif text-lg font-black text-maroon-royal leading-none">
+                Sales / Stock / Payment Reports + Cash Calculation
               </h4>
-              <p className="font-serif italic text-xs text-mocha/80 mt-1">
-                Calculated net operational cash flow for specified report type timeframe
+              <p className="font-serif italic text-xs text-mocha mt-1">
+                Net operational cash flow with stock vs sales comparison
               </p>
             </div>
-            <div className="uppercase font-mono text-[9px] tracking-widest text-gold-rich font-extrabold bg-[#1C1917] px-3.5 py-1 rounded-full border border-gold-rich/10">
-              AUDITED STATEMENT
+            <div className="flex items-center gap-2">
+              <Button
+                variant="gold"
+                size="sm"
+                onClick={() => {
+                  const headers = "Metric,Value (INR)\n";
+                  const rows = [
+                    ["Gross Sales Revenue", metrics.totalRevenue.toFixed(2)],
+                    ["Total Stock Expenditure", metrics.totalExpenses.toFixed(2)],
+                    ["Total Supplier Payments", metrics.totalSupplierPayments.toFixed(2)],
+                    ["Cash In Hand", metrics.inHandCash.toFixed(2)],
+                    ["Net Profit / Loss", metrics.netProfit.toFixed(2)],
+                    ["Profit Margin (%)", metrics.margin.toFixed(2)]
+                  ].map(r => `"${r[0]}",${r[1]}`).join("\n");
+                  const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute("download", `MaharajiKitchen_PnL_${reportType}_${selectedDate}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast.success("P&L + Cash report downloaded!");
+                }}
+                className="py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Report</span>
+              </Button>
+              <div className="uppercase font-mono text-[9px] tracking-widest text-maroon-royal font-extrabold bg-cream-warm px-3.5 py-1 rounded-full border border-gold-rich/30">
+                AUDITED STATEMENT
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            
-            {/* Tile 1: Gross checkouts */}
-            <div className="bg-charcoal-deep p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+
+            {/* Tile 1: Gross sales */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border-2 border-green-200 flex flex-col justify-between shadow-sm">
               <div>
-                <span className="text-[8px] text-mocha/80 font-bold uppercase tracking-widest block">Total Dining Incomes</span>
-                <h5 className="font-mono text-2xl font-black text-white mt-1">₹{metrics.totalRevenue.toLocaleString("en-IN")}</h5>
+                <span className="text-[9px] text-green-700 font-bold uppercase tracking-widest block">Gross Sales</span>
+                <h5 className="font-mono text-xl font-black text-green-800 mt-1">₹{metrics.totalRevenue.toLocaleString("en-IN")}</h5>
               </div>
-              <div className="text-[10px] text-gold-shimmer/80 flex items-center gap-1 mt-3">
-                <TrendingUp className="w-4 h-4 text-green" />
-                <span>Gross restaurant register covers</span>
+              <div className="text-[10px] text-green-700 flex items-center gap-1 mt-3 font-medium">
+                <TrendingUp className="w-4 h-4" />
+                <span>Total dining revenue</span>
               </div>
             </div>
 
-            {/* Tile 2: Material expendatures */}
-            <div className="bg-charcoal-deep p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+            {/* Tile 2: Stock expense */}
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl border-2 border-amber-200 flex flex-col justify-between shadow-sm">
               <div>
-                <span className="text-[8px] text-mocha/80 font-bold uppercase tracking-widest block">Total Material procurements</span>
-                <h5 className="font-mono text-2xl font-black text-neutral-300 mt-1">₹{metrics.totalExpenses.toLocaleString("en-IN")}</h5>
+                <span className="text-[9px] text-amber-800 font-bold uppercase tracking-widest block">Stock Expenditure</span>
+                <h5 className="font-mono text-xl font-black text-amber-900 mt-1">₹{metrics.totalExpenses.toLocaleString("en-IN")}</h5>
               </div>
-              <div className="text-[10px] text-red-400 flex items-center gap-1 mt-3">
-                <Package className="w-4 h-4 text-red-500 animate-pulse" />
-                <span>Raw stock ingredients subtracted</span>
+              <div className="text-[10px] text-amber-800 flex items-center gap-1 mt-3 font-medium">
+                <Package className="w-4 h-4" />
+                <span>Raw materials purchased</span>
               </div>
             </div>
 
-            {/* Tile 3: Net margin */}
-            <div className={`p-5 rounded-2xl border font-sans flex flex-col justify-between ${
-              metrics.netProfit >= 0 ? "bg-green-950/20 border-green-500/20" : "bg-red-950/20 border-red-500/20"
+            {/* Tile 3: Supplier payments / Cash in hand */}
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 p-5 rounded-2xl border-2 border-blue-200 flex flex-col justify-between shadow-sm">
+              <div>
+                <span className="text-[9px] text-blue-800 font-bold uppercase tracking-widest block">Cash In Hand</span>
+                <h5 className="font-mono text-xl font-black text-blue-900 mt-1">₹{metrics.inHandCash.toLocaleString("en-IN")}</h5>
+              </div>
+              <div className="text-[10px] text-blue-800 flex items-center gap-1 mt-3 font-medium">
+                <Receipt className="w-4 h-4" />
+                <span>Sales − Supplier paid (₹{metrics.totalSupplierPayments.toFixed(0)})</span>
+              </div>
+            </div>
+
+            {/* Tile 4: Net profit/loss */}
+            <div className={`p-5 rounded-2xl border-2 flex flex-col justify-between shadow-sm ${
+              metrics.netProfit >= 0
+                ? "bg-gradient-to-br from-maroon-royal/5 to-gold-rich/10 border-maroon-royal/30"
+                : "bg-gradient-to-br from-red-50 to-rose-50 border-red-300"
             }`}>
               <div>
-                <span className="text-[8px] text-[#E8C766]/80 font-bold uppercase tracking-widest block">Net Calculated profits</span>
-                <h5 className={`font-mono text-2xl font-black mt-1 ${metrics.netProfit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                <span className="text-[9px] text-maroon-royal font-bold uppercase tracking-widest block">Net Profit / Loss</span>
+                <h5 className={`font-mono text-xl font-black mt-1 ${metrics.netProfit >= 0 ? "text-maroon-royal" : "text-red-700"}`}>
                   ₹{metrics.netProfit.toLocaleString("en-IN")}
                 </h5>
               </div>
-              <div className="text-[10px] text-[#FAF7F2] font-semibold flex items-center gap-1.5 mt-3">
-                <Sparkles className="w-4 h-4 text-gold-rich animate-spin-slow" />
-                <span>Net Profit margin yield: <span className="underline font-bold text-gold-light">{metrics.margin.toFixed(1)}%</span></span>
+              <div className="text-[10px] text-mocha font-semibold flex items-center gap-1.5 mt-3">
+                <Sparkles className="w-4 h-4 text-gold-rich" />
+                <span>Margin: <span className="font-bold text-maroon-royal">{metrics.margin.toFixed(1)}%</span></span>
               </div>
             </div>
 
           </div>
 
-          {/* Break even details and warnings */}
-          <div className="mt-6 p-4 bg-[#1C1917] rounded-xl border border-gold-rich/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Break even / benchmarks */}
+          <div className="mt-6 p-4 bg-cream-warm/30 rounded-xl border border-gold-rich/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex gap-2 text-xs">
               <Info className="w-5 h-5 text-gold-rich shrink-0" />
               <div>
-                <strong className="block text-gold-light leading-none">Fiscal Margin benchmarks:</strong>
+                <strong className="block text-maroon-royal leading-none">Margin Benchmark:</strong>
                 <span className="text-[10px] text-mocha leading-relaxed">
-                  Maharaji target profit margins are benchmarked at 40%. Direct ingredient procurement ratios are strictly monitored by local supervisor credentials.
+                  Maharaji target profit margin is 40%. Cash-in-hand = Total Sales − Supplier Payments made so far.
                 </span>
               </div>
             </div>
-            
-            <div className="flex gap-2">
-              <div className="text-right flex flex-col justify-center">
-                <span className="text-[8px] text-mocha uppercase block font-bold leading-none">Break-Even Status</span>
-                <span className="text-xs font-bold text-green-400 mt-1 uppercase font-mono">FULLY PROFITABLE</span>
-              </div>
+
+            <div className="text-right">
+              <span className="text-[8px] text-mocha uppercase block font-bold leading-none">Break-Even Status</span>
+              <span className={`text-xs font-bold mt-1 uppercase font-mono ${metrics.netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
+                {metrics.netProfit >= 0 ? "PROFITABLE" : "BELOW BREAK-EVEN"}
+              </span>
             </div>
           </div>
         </Card>
+
+
 
       </div>
 
