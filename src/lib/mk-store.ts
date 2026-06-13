@@ -313,8 +313,12 @@ export const useStore = create<AppState>((set, get) => {
     couponSettings,
     auditLogs,
     activeBillByTable: {},
-    activeTab: "live",
-    setActiveTab: (tab) => set({ activeTab: tab }),
+    activeTab: persistedActiveTab,
+    setActiveTab: (tab) => {
+      set({ activeTab: tab });
+      saveToStorage("activeTab", tab);
+    },
+
 
     setTagline: (text) => {
       const updatedSys = { ...get().system, tagline: text };
