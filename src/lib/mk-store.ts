@@ -199,7 +199,7 @@ interface AppState {
 
   // Menu Items CRUD
   menuItems: MenuItem[];
-  addMenuItem: (name: string, category_id: string, price: number, custom_desc?: string, custom_img?: string) => void;
+  addMenuItem: (name: string, category_id: string, price: number, custom_desc?: string, custom_img?: string, food_type?: "veg" | "non_veg") => void;
   editMenuItem: (id: string, updates: Partial<MenuItem>) => void;
   deleteMenuItem: (id: string) => void;
 
