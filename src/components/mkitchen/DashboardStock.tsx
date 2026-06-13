@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { useStore } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Calendar, ArrowUpRight, TrendingUp, Upload, X, IndianRupee, CreditCard, Image as ImageIcon } from "lucide-react";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight } from "lucide-react";
 import { UserRole } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
@@ -14,13 +14,26 @@ export const DashboardStock: React.FC = () => {
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
 
+  // F11 / F8: Material usage tracking
+  const menuItems = useStore(state => state.menuItems);
+  const materialUsages = useStore(state => state.materialUsages);
+  const addMaterialUsage = useStore(state => state.addMaterialUsage);
+  const deleteMaterialUsage = useStore(state => state.deleteMaterialUsage);
+  const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
+
   // Form States
   const [itemName, setItemName] = useState("");
   const [qty, setQty] = useState("");
-  const [unit, setUnit] = useState("kg"); // F15: default to kg, grams option added, cans removed
+  const [unit, setUnit] = useState("kg");
   const [unitPrice, setUnitPrice] = useState("");
   const [supplier, setSupplier] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Material usage form states
+  const [muMenuItemId, setMuMenuItemId] = useState("");
+  const [muMaterialName, setMuMaterialName] = useState("");
+  const [muQtyPerPlate, setMuQtyPerPlate] = useState("");
+  const [muUnit, setMuUnit] = useState("g");
 
   // Supplier Payment Modal States (F16)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -39,6 +52,30 @@ export const DashboardStock: React.FC = () => {
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
+
+  // Calculate low stock from store helper
+  const lowStockList = getLowStockMaterials();
+
+  const handleSaveMaterialUsage = (e: React.FormEvent) => {
+    e.preventDefault();
+    const qtyVal = parseFloat(muQtyPerPlate);
+    if (!muMenuItemId || !muMaterialName.trim() || isNaN(qtyVal) || qtyVal <= 0) {
+      toast.error("Please select a dish, material name and valid per-plate quantity.");
+      return;
+    }
+    addMaterialUsage({
+      menu_item_id: muMenuItemId,
+      material_name: muMaterialName.trim(),
+      quantity_per_plate: qtyVal,
+      unit: muUnit
+    });
+    setMuMenuItemId("");
+    setMuMaterialName("");
+    setMuQtyPerPlate("");
+    setMuUnit("g");
+    toast.success("Material per-plate usage saved!");
+  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
