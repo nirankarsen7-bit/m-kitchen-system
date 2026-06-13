@@ -254,10 +254,19 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="font-serif font-black text-maroon-royal flex items-baseline gap-1 md:text-lg">
-              <span className="bg-royal-gradient text-transparent bg-clip-text font-black">MAHARAJI KITCHEN</span>
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="font-serif font-black text-maroon-royal flex items-center gap-2 md:text-lg relative"
+            >
+              <Crown className="w-5 h-5 text-gold-rich animate-pulse" />
+              <span className="bg-royal-gradient text-transparent bg-clip-text font-black tracking-wide relative overflow-hidden">
+                MAHARAJI KITCHEN
+              </span>
               <span className="text-[10px] md:text-xs font-accent italic text-mocha capitalize">({currentUser.role})</span>
-            </div>
+            </motion.div>
+
           </div>
 
           <div className="flex items-center gap-4">
