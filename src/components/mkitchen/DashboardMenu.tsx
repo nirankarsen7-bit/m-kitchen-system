@@ -494,6 +494,22 @@ export const DashboardMenu: React.FC = () => {
             required
           />
 
+          {/* Point 7: Veg / Non-Veg toggle */}
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-maroon-royal">Food Type</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setEditItemFoodType("veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${editItemFoodType === "veg" ? "border-green-600 bg-green-50 text-green-700" : "border-gold-rich/15 text-mocha"}`}>
+                <span className="w-3 h-3 border-2 border-green-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-green-600" /></span>
+                Veg
+              </button>
+              <button type="button" onClick={() => setEditItemFoodType("non_veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${editItemFoodType === "non_veg" ? "border-red-600 bg-red-50 text-red-700" : "border-gold-rich/15 text-mocha"}`}>
+                <span className="w-3 h-3 border-2 border-red-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-red-600" /></span>
+                Non-Veg
+              </button>
+            </div>
+          </div>
+
+
           <div className="relative mb-5 font-sans">
             <label className="block text-[10px] text-mocha font-bold uppercase tracking-wider mb-1">Gourmet Description</label>
             <textarea
