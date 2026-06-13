@@ -378,6 +378,32 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
           <VoiceSearchMic onResults={(trans) => setSearchQuery(trans)} />
         </div>
 
+        {/* Point 7: Veg / Non-Veg filter chips */}
+        <div className="flex gap-2">
+          {[
+            { v: "all" as const, label: "All", color: "border-gold-rich/30 text-mocha" },
+            { v: "veg" as const, label: "Veg Only", color: "border-green-600 text-green-700" },
+            { v: "non_veg" as const, label: "Non-Veg", color: "border-red-600 text-red-700" },
+          ].map(opt => (
+            <button
+              key={opt.v}
+              onClick={() => setFoodTypeFilter(opt.v)}
+              className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl border-2 transition-all flex items-center justify-center gap-1.5 ${
+                foodTypeFilter === opt.v
+                  ? (opt.v === "veg" ? "bg-green-50 border-green-600 text-green-700" : opt.v === "non_veg" ? "bg-red-50 border-red-600 text-red-700" : "bg-royal-gradient text-white border-maroon-royal")
+                  : `bg-white ${opt.color}`
+              }`}
+            >
+              {opt.v !== "all" && (
+                <span className={`w-3 h-3 border-2 rounded-sm flex items-center justify-center ${opt.v === "veg" ? "border-green-600" : "border-red-600"}`}>
+                  <span className={`block w-1.5 h-1.5 rounded-full ${opt.v === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                </span>
+              )}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {/* 6. Sticky Categorical Browse tabs */}
         <div className="sticky top-14 z-10 bg-[#FAF7F2]/95 py-2 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-2 border-b border-gold-rich/5">
           <button
