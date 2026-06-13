@@ -29,6 +29,7 @@ export const DashboardMenu: React.FC = () => {
   const [newItemName, setNewItemName] = useState("");
   const [newItemCategory_id, setNewItemCategory_id] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
+  const [newItemFoodType, setNewItemFoodType] = useState<"veg" | "non_veg">("veg");
   const [generatedDesc, setGeneratedDesc] = useState("");
   const [generatedImg, setGeneratedImg] = useState("");
   const [isStepTwoGenerate, setIsStepTwoGenerate] = useState(false);
@@ -41,6 +42,7 @@ export const DashboardMenu: React.FC = () => {
   const [editItemDesc, setEditItemDesc] = useState("");
   const [editItemImg, setEditItemImg] = useState("");
   const [editItemCategoryId, setEditItemCategoryId] = useState("");
+  const [editItemFoodType, setEditItemFoodType] = useState<"veg" | "non_veg">("veg");
 
   // Handle category saves
   const handleSaveCategory = (e: React.FormEvent) => {
@@ -77,6 +79,7 @@ export const DashboardMenu: React.FC = () => {
     setEditItemDesc(item.description);
     setEditItemImg(item.image_url);
     setEditItemCategoryId(item.category_id);
+    setEditItemFoodType(item.food_type === "non_veg" ? "non_veg" : "veg");
     setIsEditItemModalOpen(true);
   };
 
@@ -92,7 +95,8 @@ export const DashboardMenu: React.FC = () => {
       price: priceVal,
       description: editItemDesc,
       image_url: editItemImg,
-      category_id: editItemCategoryId || undefined
+      category_id: editItemCategoryId || undefined,
+      food_type: editItemFoodType
     });
 
     toast.success("Menu item updated successfully!");
@@ -109,12 +113,13 @@ export const DashboardMenu: React.FC = () => {
     const priceVal = parseFloat(newItemPrice);
     if (isNaN(priceVal)) return;
 
-    addMenuItem(newItemName, newItemCategory_id, priceVal, generatedDesc, generatedImg);
+    addMenuItem(newItemName, newItemCategory_id, priceVal, generatedDesc, generatedImg, newItemFoodType);
 
     // Reset states
     setNewItemName("");
     setNewItemCategory_id("");
     setNewItemPrice("");
+    setNewItemFoodType("veg");
     setGeneratedDesc("");
     setGeneratedImg("");
     setIsStepTwoGenerate(false);
@@ -199,6 +204,15 @@ export const DashboardMenu: React.FC = () => {
                     />
                     <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-charcoal-deep/80 text-white text-[9px] uppercase tracking-wide">
                       {matchedCat?.name || "Dish"}
+                    </span>
+                    {/* Point 7: Veg / Non-Veg indicator */}
+                    <span
+                      className={`absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 border-2 rounded-sm bg-white ${
+                        item.food_type === "non_veg" ? "border-red-600" : "border-green-600"
+                      }`}
+                      title={item.food_type === "non_veg" ? "Non-Veg" : "Veg"}
+                    >
+                      <span className={`block w-2.5 h-2.5 rounded-full ${item.food_type === "non_veg" ? "bg-red-600" : "bg-green-600"}`} />
                     </span>
                     {!item.is_available && (
                       <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-mocha/80 text-cream-ivory text-[8px] uppercase font-bold tracking-wider">
@@ -369,6 +383,22 @@ export const DashboardMenu: React.FC = () => {
               required
             />
 
+            {/* Point 7: Veg / Non-Veg toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-maroon-royal">Food Type</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setNewItemFoodType("veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${newItemFoodType === "veg" ? "border-green-600 bg-green-50 text-green-700" : "border-gold-rich/15 text-mocha"}`}>
+                  <span className="w-3 h-3 border-2 border-green-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-green-600" /></span>
+                  Veg
+                </button>
+                <button type="button" onClick={() => setNewItemFoodType("non_veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${newItemFoodType === "non_veg" ? "border-red-600 bg-red-50 text-red-700" : "border-gold-rich/15 text-mocha"}`}>
+                  <span className="w-3 h-3 border-2 border-red-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-red-600" /></span>
+                  Non-Veg
+                </button>
+              </div>
+            </div>
+
+
             <div className="flex gap-2 pt-2 justify-end">
               <Button variant="ghost" size="sm" type="button" onClick={() => setIsItemModalOpen(false)}>
                 Discard
@@ -463,6 +493,22 @@ export const DashboardMenu: React.FC = () => {
             placeholder="eg. 320"
             required
           />
+
+          {/* Point 7: Veg / Non-Veg toggle */}
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-maroon-royal">Food Type</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setEditItemFoodType("veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${editItemFoodType === "veg" ? "border-green-600 bg-green-50 text-green-700" : "border-gold-rich/15 text-mocha"}`}>
+                <span className="w-3 h-3 border-2 border-green-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-green-600" /></span>
+                Veg
+              </button>
+              <button type="button" onClick={() => setEditItemFoodType("non_veg")} className={`px-3 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center gap-1.5 ${editItemFoodType === "non_veg" ? "border-red-600 bg-red-50 text-red-700" : "border-gold-rich/15 text-mocha"}`}>
+                <span className="w-3 h-3 border-2 border-red-600 rounded-sm flex items-center justify-center"><span className="block w-1.5 h-1.5 rounded-full bg-red-600" /></span>
+                Non-Veg
+              </button>
+            </div>
+          </div>
+
 
           <div className="relative mb-5 font-sans">
             <label className="block text-[10px] text-mocha font-bold uppercase tracking-wider mb-1">Gourmet Description</label>

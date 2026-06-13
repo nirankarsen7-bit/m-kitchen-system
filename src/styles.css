@@ -147,8 +147,9 @@
   --color-maroon-deep: #5C0F1A;
   --color-maroon-royal: #7B1E2B;
   --color-maroon-light: #A03546;
-  --color-gold-rich: #D4AF37;
-  --color-gold-light: #E8C766;
+  /* Darker, high-contrast gold so text reads clearly on light backgrounds */
+  --color-gold-rich: #8B6508;
+  --color-gold-light: #C9A227;
   --color-gold-shimmer: #F5DC8A;
   --color-cream-ivory: #FAF7F2;
   --color-cream-warm: #F2EBDF;
@@ -322,4 +323,141 @@
 
 .animate-mic-active {
   animation: breathing 1.5s infinite ease-in-out;
+}
+
+/* ====================================================================
+ * Premium offer reel - infinite loop reveal for customer offers
+ * ==================================================================== */
+@keyframes offerReelLuckyIn {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  6%, 28% { opacity: 1; transform: scale(1) translateY(0); }
+  33%, 100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+}
+@keyframes offerReelOffersIn {
+  0%, 32% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  38%, 92% { opacity: 1; transform: scale(1) translateY(0); }
+  98%, 100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+}
+.offer-reel-lucky { animation: offerReelLuckyIn 9s ease-in-out infinite; }
+.offer-reel-offers { animation: offerReelOffersIn 9s ease-in-out infinite; }
+
+@keyframes offerCardFloat {
+  0%, 100% { transform: translateY(0) rotate(-0.3deg); box-shadow: 0 6px 24px rgba(139,101,8,0.25); }
+  50% { transform: translateY(-4px) rotate(0.3deg); box-shadow: 0 14px 36px rgba(139,101,8,0.45); }
+}
+.animate-offer-float { animation: offerCardFloat 3.5s ease-in-out infinite; }
+
+@keyframes goldPulseGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(212,175,55,0.45), 0 0 0 1px rgba(212,175,55,0.3); }
+  50% { box-shadow: 0 0 28px rgba(245,220,138,0.75), 0 0 0 2px rgba(212,175,55,0.6); }
+}
+.animate-gold-pulse-glow { animation: goldPulseGlow 2.4s ease-in-out infinite; }
+
+/* ====================================================================
+ * Premium button sheen sweep (subtle on hover)
+ * ==================================================================== */
+@keyframes buttonSheen {
+  0% { transform: translateX(-150%) skewX(-12deg); }
+  100% { transform: translateX(250%) skewX(-12deg); }
+}
+.btn-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  transform: translateX(-150%) skewX(-12deg);
+  pointer-events: none;
+}
+.btn-sheen:hover::after { animation: buttonSheen 0.9s ease-out; }
+
+/* Card elite lift */
+.card-elite {
+  transition: transform 0.35s cubic-bezier(.2,.8,.2,1), box-shadow 0.35s cubic-bezier(.2,.8,.2,1);
+}
+.card-elite:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -10px rgba(123,30,43,0.28), 0 0 0 1px rgba(212,175,55,0.35);
+}
+
+/* ====================================================================
+ * Welcome screen — restaurant tadka cinematic background
+ * ==================================================================== */
+@keyframes smokeRise {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  20% { opacity: 0.55; }
+  100% { transform: translateY(-380px) scale(1.8); opacity: 0; }
+}
+.welcome-smoke {
+  position: absolute;
+  bottom: -40px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,240,220,0.55), rgba(255,240,220,0) 70%);
+  filter: blur(18px);
+  animation: smokeRise 7s ease-out infinite;
+}
+
+@keyframes flameFlicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.95; filter: blur(0.5px); }
+  25% { transform: scaleY(1.18) scaleX(0.92); opacity: 1; }
+  50% { transform: scaleY(0.92) scaleX(1.08); opacity: 0.85; }
+  75% { transform: scaleY(1.1) scaleX(0.95); opacity: 1; }
+}
+.welcome-flame { animation: flameFlicker 0.45s ease-in-out infinite; transform-origin: bottom center; }
+
+@keyframes panToss {
+  0% { transform: translate(-50%, 0) rotate(0deg); }
+  20% { transform: translate(-50%, -22px) rotate(-12deg); }
+  45% { transform: translate(-50%, -38px) rotate(-22deg); }
+  70% { transform: translate(-50%, -22px) rotate(-12deg); }
+  100% { transform: translate(-50%, 0) rotate(0deg); }
+}
+.welcome-pan { animation: panToss 3.2s ease-in-out infinite; transform-origin: center; }
+
+@keyframes chiliFloat {
+  0% { transform: translateY(0) rotateZ(-15deg) rotateY(0deg) scale(1); opacity: 0.9; }
+  50% { transform: translateY(-22px) rotateZ(20deg) rotateY(180deg) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) rotateZ(-15deg) rotateY(360deg) scale(1); opacity: 0.9; }
+}
+.welcome-chili {
+  animation: chiliFloat 6s ease-in-out infinite;
+  filter: drop-shadow(0 6px 14px rgba(220,38,38,0.55));
+  transform-style: preserve-3d;
+}
+
+@keyframes spark {
+  0% { transform: translate(0,0) scale(0); opacity: 1; }
+  100% { transform: translate(var(--sx,40px), var(--sy,-60px)) scale(1.2); opacity: 0; }
+}
+.welcome-spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FFC857, #DC2626 70%, transparent 100%);
+  animation: spark 1.4s ease-out infinite;
+}
+
+@keyframes welcomeTitleShine {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.welcome-title {
+  background: linear-gradient(90deg, #D4AF37 0%, #FFE89A 25%, #D4AF37 50%, #FFE89A 75%, #D4AF37 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: welcomeTitleShine 4s linear infinite;
+}
+
+@keyframes warmGlowBg {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.welcome-bg {
+  background: linear-gradient(135deg, #1a0a0a 0%, #2d1810 30%, #3a1a0d 60%, #2d1810 100%);
+  background-size: 200% 200%;
+  animation: warmGlowBg 14s ease-in-out infinite;
 }

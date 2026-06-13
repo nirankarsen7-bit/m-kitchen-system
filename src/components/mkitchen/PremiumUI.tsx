@@ -141,7 +141,7 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...props
 }) => {
-  const baseStyle = "relative overflow-hidden font-sans font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-rich focus:ring-offset-1 text-center flex items-center justify-center gap-2 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyle = "btn-sheen relative overflow-hidden font-sans font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-rich focus:ring-offset-1 text-center flex items-center justify-center gap-2 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed";
 
   const sizeClasses = {
     sm: "px-4 py-2 text-xs",
@@ -150,17 +150,18 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantClasses = {
-    primary: "bg-royal-gradient text-cream-ivory shadow-lg shadow-maroon-deep/30 border border-maroon-royal/20 hover:brightness-110",
-    gold: "bg-gold-gradient text-charcoal-deep font-bold border border-gold-rich shadow-md shadow-gold-rich/20 animate-gold-glow hover:brightness-105",
-    ghost: "bg-transparent border border-maroon-royal/35 text-maroon-royal hover:bg-maroon-royal/5",
-    danger: "bg-gradient-to-r from-red-700 to-red-950 text-cream-ivory shadow-md border border-red-900 active:scale-95",
+    primary: "bg-royal-gradient text-cream-ivory shadow-lg shadow-maroon-deep/30 border border-maroon-royal/30 hover:brightness-110 hover:shadow-xl hover:shadow-maroon-deep/40",
+    gold: "bg-gold-gradient text-charcoal-deep font-bold border border-gold-rich shadow-md shadow-gold-rich/30 animate-gold-glow hover:brightness-105 hover:shadow-lg",
+    ghost: "bg-transparent border border-maroon-royal/35 text-maroon-royal hover:bg-maroon-royal/5 hover:border-maroon-royal/60",
+    danger: "bg-gradient-to-r from-red-700 to-red-950 text-cream-ivory shadow-md border border-red-900 active:scale-95 hover:shadow-lg",
     icon: "p-2 rounded-full border border-gold-rich/25 bg-cream-warm/40 text-mocha hover:text-maroon-royal hover:bg-cream-warm hover:scale-105"
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.02, y: -1 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.03, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 380, damping: 22 }}
       className={`${baseStyle} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
       disabled={loading || props.disabled}
       {...(props as any)}
@@ -184,10 +185,10 @@ export const Card: React.FC<CardProps> = ({
   children,
   ...props
 }) => {
-  const base = "rounded-2xl p-6 transition-all duration-300 ";
-  
+  const base = "rounded-2xl p-6 transition-all duration-300 card-elite ";
+
   const styles = {
-    standard: "bg-white border border-gold-rich/10 shadow-md shadow-mocha/5 hover:shadow-xl hover:translate-y-[-2px]",
+    standard: "bg-white border border-gold-rich/15 shadow-md shadow-mocha/5",
     glass: "bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl rounded-3xl",
     dark: "bg-luxury-dark text-cream-ivory border border-gold-rich/20 shadow-2xl p-6",
     outline: "bg-transparent border-2 border-dashed border-gold-rich/20 rounded-2xl"

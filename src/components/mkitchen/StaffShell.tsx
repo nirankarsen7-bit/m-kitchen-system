@@ -116,32 +116,41 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
 
 
         {/* Links listing - strict 1-10 listing using passed tab state */}
-        <nav className="flex-1 py-4 px-2 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {sidebarItems.map((item, idx) => {
             const isActive = activeTab === item.path;
 
             return (
-              <button
+              <motion.button
                 key={idx}
                 onClick={() => setActiveTab(item.path)}
-                className={`w-full text-left flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 group relative cursor-pointer ${
-                  isActive 
-                    ? "bg-royal-gradient text-white shadow shadow-maroon-royal/20 border-l-[4px] border-gold-rich font-bold" 
-                    : "text-cream-warm/75 hover:bg-white/5 hover:text-white"
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 380, damping: 22 }}
+                className={`w-full text-left flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-300 group relative cursor-pointer ${
+                  isActive
+                    ? "bg-gradient-to-r from-maroon-deep via-maroon-royal to-maroon-royal text-white shadow-lg shadow-maroon-deep/40 font-bold"
+                    : "text-cream-warm/80 hover:bg-white/8 hover:text-white"
                 }`}
               >
-                <div className={`transition-transform duration-200 group-hover:rotate-6 ${isActive ? "text-gold-rich" : ""}`}>
+                {/* Animated glowing gold accent bar on active */}
+                {isActive && (
+                  <motion.span
+                    layoutId="active-side-bar"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-1 rounded-r bg-gold-gradient shadow-[0_0_10px_rgba(245,220,138,0.7)]"
+                  />
+                )}
+                <div className={`transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110 ${isActive ? "text-gold-shimmer drop-shadow-[0_0_4px_rgba(245,220,138,0.7)]" : ""}`}>
                   {item.icon}
                 </div>
-                {!sidebarCollapsed && <span>{item.name}</span>}
+                {!sidebarCollapsed && <span className="relative z-10">{item.name}</span>}
 
-                {/* Micro Tooltip on collapsed state */}
                 {sidebarCollapsed && (
-                  <div className="absolute left-16 px-2.5 py-1.5 bg-charcoal-deep border border-gold-rich/20 rounded shadow text-[9px] text-cream-ivory uppercase tracking-widest leading-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-40 whitespace-nowrap">
+                  <div className="absolute left-16 px-2.5 py-1.5 bg-charcoal-deep border border-gold-rich/30 rounded shadow-lg text-[9px] text-cream-ivory uppercase tracking-widest leading-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-40 whitespace-nowrap">
                     {item.name}
                   </div>
                 )}
-              </button>
+              </motion.button>
             );
           })}
         </nav>

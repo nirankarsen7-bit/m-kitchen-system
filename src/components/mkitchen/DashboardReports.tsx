@@ -840,6 +840,68 @@ export const DashboardReports: React.FC = () => {
     );
   };
 
+  // Point 1: per-bill item breakdown helper (works for real + seed bills)
+  const getBillItems = (bill: Bill): { name: string; qty: number; rate: number; amount: number }[] => {
+    // Real checkout: pull from actual confirmed order items
+    if (bill.id && !bill.id.startsWith("seed-bill-") && bill.order_id) {
+      const items = storeOrderItems.filter(oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED);
+      if (items.length > 0) {
+        return items.map(oi => {
+          const m = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+          return {
+            name: m?.name || "Item",
+            qty: oi.quantity,
+            rate: +oi.price.toFixed(2),
+            amount: +(oi.price * oi.quantity).toFixed(2),
+          };
+        });
+      }
+    }
+    // Seed bill: deterministic items reconciled to bill.subtotal
+    const rngI = createRng(`bill-items-detail-${bill.id}`);
+    const dishesCount = Math.max(1, Math.floor(1 + rngI() * 4));
+    const lines: { name: string; qty: number; rate: number; amount: number }[] = [];
+    let allocated = 0;
+    for (let d = 0; d < dishesCount; d++) {
+      const idx = Math.floor(rngI() * storeMenuItems.length);
+      const item = storeMenuItems[idx];
+      if (!item) continue;
+      const qty = Math.max(1, Math.floor(1 + rngI() * 3));
+      const amount = item.price * qty;
+      lines.push({ name: item.name, qty, rate: item.price, amount });
+      allocated += amount;
+    }
+    if (lines.length === 0 && storeMenuItems[0]) {
+      lines.push({ name: storeMenuItems[0].name, qty: 1, rate: storeMenuItems[0].price, amount: storeMenuItems[0].price });
+      allocated = storeMenuItems[0].price;
+    }
+    // Scale prices proportionally so lines reconcile to bill.subtotal
+    if (allocated > 0 && bill.subtotal > 0) {
+      const scale = bill.subtotal / allocated;
+      lines.forEach(l => {
+        l.rate = +(l.rate * scale).toFixed(2);
+        l.amount = +(l.qty * l.rate).toFixed(2);
+      });
+    }
+    return lines;
+  };
+
+  // Point 1: aggregate highest-sales date(s)
+  const dailySalesMap: Map<string, { revenue: number; bills: number }> = new Map();
+  filteredData.forEach(b => {
+    const d = b.created_at.slice(0, 10);
+    const cur = dailySalesMap.get(d) || { revenue: 0, bills: 0 };
+    cur.revenue += b.total;
+    cur.bills += 1;
+    dailySalesMap.set(d, cur);
+  });
+  const dailySalesSorted = Array.from(dailySalesMap.entries()).sort((a, b) => b[1].revenue - a[1].revenue);
+  const topSalesDate = dailySalesSorted[0]; // [date, { revenue, bills }] | undefined
+  const topSalesDateStr = topSalesDate ? topSalesDate[0] : "-";
+  const topSalesDateRevenue = topSalesDate ? topSalesDate[1].revenue : 0;
+  const topSalesDateBills = topSalesDate ? topSalesDate[1].bills : 0;
+
+
   // EXPORT 1: PDF Download - structured text + tables (no html2canvas, no oklch issues)
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
@@ -913,23 +975,8 @@ export const DashboardReports: React.FC = () => {
       summaryRows.forEach(r => drawRow([r[0], r[1]], [110, 70]));
       y += 4;
 
-      // 2. Bills ledger (top 30)
-      sectionTitle("Bills Ledger (latest 30)");
-      drawRow(["Invoice", "Table", "Subtotal", "Discount", "Total", "Date"], [40, 18, 28, 28, 28, 44], true);
-      filteredData.slice(0, 30).forEach(b => {
-        drawRow(
-          [
-            b.bill_number,
-            `T${b.table_number}`,
-            b.subtotal.toFixed(0),
-            b.discount.toFixed(0),
-            b.total.toFixed(0),
-            new Date(b.created_at).toLocaleDateString()
-          ],
-          [40, 18, 28, 28, 28, 44]
-        );
-      });
-      y += 4;
+      // (Itemised bills ledger appears below; old plain ledger removed for clarity.)
+
 
       // 3. Item analytics
       sectionTitle("Top Selling Dishes");
@@ -955,6 +1002,42 @@ export const DashboardReports: React.FC = () => {
           [26, 60, 22, 24, 24, 30]
         );
       });
+
+      // 1.1 Top Sales Date (Point 1)
+      sectionTitle("Highest Sales Date in Period");
+      if (topSalesDate) {
+        drawRow(["Date with highest sales", new Date(topSalesDateStr).toLocaleDateString("en-IN")], [110, 70], true);
+        drawRow(["Revenue on that day", `Rs. ${topSalesDateRevenue.toFixed(2)}`], [110, 70]);
+        drawRow(["Bills closed on that day", String(topSalesDateBills)], [110, 70]);
+      } else {
+        drawRow(["(no bills in this period)", "-"], [110, 70]);
+      }
+      y += 4;
+
+      // 2. Bills ledger with ITEM-WISE detail per bill (Point 1)
+      sectionTitle("Bills Ledger — itemised (latest 30)");
+      filteredData.slice(0, 30).forEach(b => {
+        drawRow(
+          [
+            `Bill: ${b.bill_number}`,
+            `T${b.table_number}`,
+            new Date(b.created_at).toLocaleDateString(),
+            `Sub: Rs.${b.subtotal.toFixed(0)}`,
+            `Disc: Rs.${b.discount.toFixed(0)}`,
+            `Total: Rs.${b.total.toFixed(0)}`
+          ],
+          [42, 14, 24, 30, 28, 30],
+          true
+        );
+        // Item lines
+        const items = getBillItems(b);
+        drawRow(["  Item", "Qty", "Rate", "Amount"], [80, 20, 30, 38]);
+        items.forEach(it => {
+          drawRow([`  ${it.name}`.slice(0, 42), String(it.qty), `Rs.${it.rate.toFixed(2)}`, `Rs.${it.amount.toFixed(2)}`], [80, 20, 30, 38]);
+        });
+        y += 2;
+      });
+      y += 4;
 
       // Footer band on each page
       const pageCount = pdf.getNumberOfPages();
@@ -1075,6 +1158,45 @@ export const DashboardReports: React.FC = () => {
       const wsComparisons = XLSX.utils.aoa_to_sheet(sheet9Data);
       XLSX.utils.book_append_sheet(wb, wsComparisons, "Comparisons");
 
+      // Excel Sheet 10 (Point 1): Bills with item-wise breakdown
+      const sheet10Header = [["Invoice No", "Table", "Bill Date", "Item Name", "Qty", "Rate (₹)", "Amount (₹)", "Bill Subtotal (₹)", "Discount (₹)", "Bill Total (₹)", "Coupon"]];
+      const sheet10Rows: any[][] = [];
+      filteredData.forEach(b => {
+        const items = getBillItems(b);
+        if (items.length === 0) {
+          sheet10Rows.push([b.bill_number, `Table ${b.table_number}`, b.created_at, "(no items)", 0, 0, 0, b.subtotal, b.discount, b.total, b.coupon_code || ""]);
+        } else {
+          items.forEach((it, idx) => {
+            sheet10Rows.push([
+              idx === 0 ? b.bill_number : "",
+              idx === 0 ? `Table ${b.table_number}` : "",
+              idx === 0 ? b.created_at : "",
+              it.name, it.qty, it.rate, it.amount,
+              idx === 0 ? b.subtotal : "",
+              idx === 0 ? b.discount : "",
+              idx === 0 ? b.total : "",
+              idx === 0 ? (b.coupon_code || "") : ""
+            ]);
+          });
+        }
+      });
+      const wsBillItems = XLSX.utils.aoa_to_sheet([...sheet10Header, ...sheet10Rows]);
+      XLSX.utils.book_append_sheet(wb, wsBillItems, "Bills (Itemised)");
+
+      // Excel Sheet 11 (Point 1): Daily sales ranked, highlighting top date
+      const sheet11Header = [["Rank", "Date", "Revenue (₹)", "Bills Closed"]];
+      const sheet11Rows = dailySalesSorted.map(([date, v], idx) => [
+        idx === 0 ? "🏆 TOP" : `#${idx + 1}`, date, v.revenue, v.bills
+      ]);
+      const wsDaily = XLSX.utils.aoa_to_sheet([
+        ["HIGHEST SALES DATE ANALYSIS"],
+        [`Top day: ${topSalesDateStr} — ₹${topSalesDateRevenue.toFixed(2)} across ${topSalesDateBills} bills`],
+        [],
+        ...sheet11Header,
+        ...sheet11Rows
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsDaily, "Highest Sales Date");
+
       XLSX.writeFile(wb, `MaharajiKitchen_Report_${reportType}_${selectedDate}.xlsx`);
     } catch (e) {
       toast.error("Error building SheetJS workbook.");
@@ -1083,23 +1205,51 @@ export const DashboardReports: React.FC = () => {
     }
   };
 
-  // EXPORT 3: CSV backup
+  // EXPORT 3: CSV backup — Point 1: includes item-wise details and highest sales date
   const handleExportCSV = () => {
     setIsExportingCSV(true);
     try {
-      const headers = "Invoice No,Table Number,Subtotal,Discount,Invoice Total,Created At\n";
-      const rows = filteredData.map(b => 
-        `"${b.bill_number}","Table ${b.table_number}",${b.subtotal},${b.discount},${b.total},"${b.created_at}"`
-      ).join("\n");
-      const blob = new Blob(["\ufeff" + headers + rows], { type: "text/csv;charset=utf-8;" });
+      const lines: string[] = [];
+      lines.push(`Maharaji Kitchen — Sales Report`);
+      lines.push(`Period,${reportType}`);
+      lines.push(`Reference Date,${selectedDate}`);
+      lines.push(`Generated,${new Date().toLocaleString()}`);
+      lines.push("");
+      lines.push("HIGHEST SALES DATE");
+      lines.push("Date,Revenue,Bills Closed");
+      if (topSalesDate) {
+        lines.push(`${topSalesDateStr},${topSalesDateRevenue.toFixed(2)},${topSalesDateBills}`);
+      } else {
+        lines.push("-, -, -");
+      }
+      lines.push("");
+      lines.push("BILLS WITH ITEM-WISE DETAILS");
+      lines.push("Invoice No,Table,Bill Date,Item Name,Quantity,Rate (Rs),Amount (Rs),Bill Subtotal (Rs),Discount (Rs),Bill Total (Rs)");
+      filteredData.forEach(b => {
+        const items = getBillItems(b);
+        if (items.length === 0) {
+          lines.push(`"${b.bill_number}","Table ${b.table_number}","${b.created_at}","(no items)",0,0,0,${b.subtotal},${b.discount},${b.total}`);
+        } else {
+          items.forEach((it, idx) => {
+            // Bill totals only repeated on first line for readability
+            const sub = idx === 0 ? b.subtotal : "";
+            const disc = idx === 0 ? b.discount : "";
+            const tot = idx === 0 ? b.total : "";
+            lines.push(`"${b.bill_number}","Table ${b.table_number}","${b.created_at}","${it.name.replace(/"/g, '""')}",${it.qty},${it.rate.toFixed(2)},${it.amount.toFixed(2)},${sub},${disc},${tot}`);
+          });
+        }
+      });
+      const csv = lines.join("\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.setAttribute("download", `MaharajiKitchen_CSV_${reportType}_${selectedDate}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      toast.success("CSV with item-wise details downloaded.");
     } catch (err) {
-      toast.error("Failed generating flat CSV streams.");
+      toast.error("Failed generating CSV.");
     } finally {
       setIsExportingCSV(false);
     }
@@ -1113,16 +1263,8 @@ export const DashboardReports: React.FC = () => {
       return;
     }
     const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
-    const billRows = filteredData.slice(0, 200).map(b => `
-      <tr>
-        <td>${esc(b.bill_number)}</td>
-        <td>Table ${esc(b.table_number)}</td>
-        <td style="text-align:right">₹${b.subtotal.toFixed(2)}</td>
-        <td>${esc(b.coupon_code || "—")}</td>
-        <td style="text-align:right">₹${b.discount.toFixed(2)}</td>
-        <td style="text-align:right;font-weight:bold">₹${b.total.toFixed(2)}</td>
-        <td>${new Date(b.created_at).toLocaleString()}</td>
-      </tr>`).join("");
+    // (Plain billRows removed; Point 1 uses billItemRows below.)
+
 
     const itemRows = metrics.itemsAnalytics.map(i => `
       <tr>
@@ -1150,6 +1292,28 @@ export const DashboardReports: React.FC = () => {
         <td>${esc(p.reference_number || "—")}</td>
         <td style="text-align:right;font-weight:bold">₹${p.amount.toFixed(2)}</td>
       </tr>`).join("");
+
+    // Point 1: itemised bill rows - each bill expanded into one row per item plus a totals row
+    const billItemRows = filteredData.slice(0, 200).map(b => {
+      const items = getBillItems(b);
+      const itemTrs = items.map((it, idx) => `
+        <tr>
+          <td>${idx === 0 ? esc(b.bill_number) : ""}</td>
+          <td>${idx === 0 ? `Table ${esc(b.table_number)}` : ""}</td>
+          <td>${esc(it.name)}</td>
+          <td style="text-align:right">${it.qty}</td>
+          <td style="text-align:right">₹${it.rate.toFixed(2)}</td>
+          <td style="text-align:right">₹${it.amount.toFixed(2)}</td>
+          <td>${idx === 0 ? new Date(b.created_at).toLocaleString() : ""}</td>
+        </tr>`).join("");
+      const totalsTr = `
+        <tr style="background:#FAF0E5;font-weight:bold">
+          <td colspan="3" style="text-align:right">Subtotal / Discount / Total</td>
+          <td colspan="3" style="text-align:right">₹${b.subtotal.toFixed(2)} &nbsp; - ₹${b.discount.toFixed(2)} &nbsp; = ₹${b.total.toFixed(2)}</td>
+          <td>${esc(b.coupon_code || "—")}</td>
+        </tr>`;
+      return itemTrs + totalsTr;
+    }).join("");
 
     w.document.write(`<!doctype html><html><head><meta charset="utf-8" />
       <title>Maharaji Kitchen - Sales Report ${esc(reportType)} ${esc(selectedDate)}</title>
@@ -1185,8 +1349,21 @@ export const DashboardReports: React.FC = () => {
         <div class="kpi"><span>Margin</span><strong>${metrics.margin.toFixed(1)}%</strong></div>
       </div>
 
-      <h2>Sales — Bills Ledger</h2>
-      <table><thead><tr><th>Invoice</th><th>Table</th><th>Subtotal</th><th>Coupon</th><th>Discount</th><th>Total</th><th>Date</th></tr></thead><tbody>${billRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
+      <h2>🏆 Highest Sales Date in this Period</h2>
+      <div style="padding:12px;background:linear-gradient(135deg,#FAF0E5,#FFF9E8);border:2px solid #D4AF37;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#5C4033;font-weight:bold;text-transform:uppercase;letter-spacing:0.15em;">Top Earning Day</div>
+          <div style="font-size:22px;color:#7B1E2B;font-family:Georgia,serif;font-weight:bold;margin-top:2px;">${topSalesDate ? new Date(topSalesDateStr).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#5C4033;font-weight:bold;text-transform:uppercase;">Revenue</div>
+          <div style="font-size:24px;color:#7B1E2B;font-weight:bold;">₹${topSalesDateRevenue.toFixed(2)}</div>
+          <div style="font-size:11px;color:#5C4033;">${topSalesDateBills} bills closed</div>
+        </div>
+      </div>
+
+      <h2>Sales — Bills Ledger (item-wise breakdown)</h2>
+      <table><thead><tr><th>Invoice</th><th>Table</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th><th>Date / Coupon</th></tr></thead><tbody>${billItemRows || '<tr><td colspan="7" style="text-align:center;color:#888">No bills in this period</td></tr>'}</tbody></table>
 
       <h2>Item-wise Sales Analytics</h2>
       <table><thead><tr><th>Dish</th><th>Category</th><th>Qty Sold</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:#888">No items sold</td></tr>'}</tbody></table>

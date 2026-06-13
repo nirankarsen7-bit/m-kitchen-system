@@ -133,41 +133,51 @@ export const DashboardActiveOrders: React.FC = () => {
 
     const width = posWidth === "58mm" ? 58 : 80;
 
-    // Header Title
+    // Header Title (with logo image if loadable)
+    try {
+      // Maharaji logo (same source as MaharajiLogo). jsPDF can embed PNG via data URL or remote URL via addImage with format hint.
+      // Note: remote image embedding may fail silently — we wrap in try/catch.
+      // Logo printed centered at top, ~14mm wide.
+      // @ts-ignore - addImage with URL works for same-origin/cached images
+      doc.addImage("https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png", "PNG", (width / 2) - 7, 2, 14, 14);
+    } catch (_e) {
+      // ignore logo failure - text header still prints
+    }
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("MAHARAJI KITCHEN", width / 2, 8, { align: "center" });
-    
+    doc.text("MAHARAJI KITCHEN", width / 2, 19, { align: "center" });
+
     doc.setFont("Helvetica", "italic");
-    doc.setFontSize(8);
-    doc.text(system.tagline, width / 2, 12, { align: "center" });
+    doc.setFontSize(7.5);
+    doc.text(system.tagline, width / 2, 22.5, { align: "center" });
 
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("Sukhanibasti, NH31C, West Bengal 735225", width / 2, 16, { align: "center" });
-    doc.text("WhatsApp/Phone: +91 70764 30467", width / 2, 19, { align: "center" });
-    
+    doc.text("Nagrakata, Sukhanibasti, NH31C", width / 2, 26, { align: "center" });
+    doc.text("West Bengal 735225", width / 2, 28.5, { align: "center" });
+    doc.text("WhatsApp/Phone: +91 70764 30467", width / 2, 31, { align: "center" });
+
     doc.setLineWidth(0.1);
-    doc.line(4, 22, width - 4, 22);
+    doc.line(4, 33.5, width - 4, 33.5);
 
     // Metadata
     doc.setFontSize(7);
-    doc.text(`Table No: ${tableNum}`, 5, 26);
-    doc.text(`Date: ${new Date().toLocaleDateString("en-IN")}`, width - 18, 26);
-    doc.text(`Bill Ref: MK-${Date.now().toString().slice(-6)}`, 5, 30);
-    doc.text(`Time: ${new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "numeric" })}`, width - 18, 30);
+    doc.text(`Table No: ${tableNum}`, 5, 37);
+    doc.text(`Date: ${new Date().toLocaleDateString("en-IN")}`, width - 18, 37);
+    doc.text(`Bill Ref: MK-${Date.now().toString().slice(-6)}`, 5, 40);
+    doc.text(`Time: ${new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "numeric" })}`, width - 18, 40);
 
-    doc.line(4, 33, width - 4, 33);
+    doc.line(4, 42.5, width - 4, 42.5);
 
     // Items Column Titles
     doc.setFont("Helvetica", "bold");
-    doc.text("ITEM", 5, 37);
-    doc.text("QTY", width - 20, 37);
-    doc.text("PRICE", width - 10, 37, { align: "right" });
-    doc.line(4, 39, width - 4, 39);
+    doc.text("ITEM", 5, 46);
+    doc.text("QTY", width - 20, 46);
+    doc.text("PRICE", width - 10, 46, { align: "right" });
+    doc.line(4, 48, width - 4, 48);
 
     doc.setFont("Helvetica", "normal");
-    let y = 43;
+    let y = 52;
 
     // Write Items
     list.forEach(oi => {
@@ -231,9 +241,13 @@ export const DashboardActiveOrders: React.FC = () => {
           <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
         </head>
         <body>
+          <div style="text-align:center; margin-bottom:4px;">
+            <img src="https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png" alt="Maharaji Kitchen" style="width:64px; height:64px; object-fit:contain;" />
+          </div>
           <h3 class="text-center" style="margin:2px 0;">MAHARAJI KITCHEN</h3>
           <p class="text-center" style="font-size:11px; margin:2px 0; font-style: italic;">"${system.tagline}"</p>
-          <p class="text-center" style="font-size:10px; margin:2px 0;">Sukhanibasti, NH31C, West Bengal 735225</p>
+          <p class="text-center" style="font-size:10px; margin:2px 0;">Nagrakata, Sukhanibasti, NH31C</p>
+          <p class="text-center" style="font-size:10px; margin:2px 0;">West Bengal 735225</p>
           <p class="text-center" style="font-size:10px; margin:2px 0;">WhatsApp: +91 70764 30467</p>
           
           <div class="border-b"></div>
