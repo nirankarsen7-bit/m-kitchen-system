@@ -483,7 +483,7 @@ export const DashboardStock: React.FC = () => {
                 <div className="border-2 border-dashed border-gold-rich/20 rounded-xl p-4 text-center">
                   {paymentProofImage ? (
                     <div className="space-y-2">
-                      <img src={paymentProofImage} alt="Payment Proof" className="max-h-32 mx-auto rounded-lg" />
+                      <img src={paymentProofImage} alt="Payment Proof" className="max-h-20 mx-auto rounded-lg object-contain" />
                       <button
                         type="button"
                         onClick={() => setPaymentProofImage(null)}
@@ -492,6 +492,7 @@ export const DashboardStock: React.FC = () => {
                         Remove Image
                       </button>
                     </div>
+
                   ) : (
                     <div>
                       <input
