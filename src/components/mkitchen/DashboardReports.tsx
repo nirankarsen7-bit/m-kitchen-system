@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+// html2canvas removed — PDF now uses structured jsPDF (avoids unsupported oklch CSS color crash).
 import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "@/lib/mk-types";
 
 // Dynamic Pseudo-random generator for high-fidelity deterministic fallback seed history
