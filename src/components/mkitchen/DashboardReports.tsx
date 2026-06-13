@@ -1018,6 +1018,42 @@ export const DashboardReports: React.FC = () => {
         );
       });
 
+      // 1.1 Top Sales Date (Point 1)
+      sectionTitle("Highest Sales Date in Period");
+      if (topSalesDate) {
+        drawRow(["Date with highest sales", new Date(topSalesDateStr).toLocaleDateString("en-IN")], [110, 70], true);
+        drawRow(["Revenue on that day", `Rs. ${topSalesDateRevenue.toFixed(2)}`], [110, 70]);
+        drawRow(["Bills closed on that day", String(topSalesDateBills)], [110, 70]);
+      } else {
+        drawRow(["(no bills in this period)", "-"], [110, 70]);
+      }
+      y += 4;
+
+      // 2. Bills ledger with ITEM-WISE detail per bill (Point 1)
+      sectionTitle("Bills Ledger — itemised (latest 30)");
+      filteredData.slice(0, 30).forEach(b => {
+        drawRow(
+          [
+            `Bill: ${b.bill_number}`,
+            `T${b.table_number}`,
+            new Date(b.created_at).toLocaleDateString(),
+            `Sub: Rs.${b.subtotal.toFixed(0)}`,
+            `Disc: Rs.${b.discount.toFixed(0)}`,
+            `Total: Rs.${b.total.toFixed(0)}`
+          ],
+          [42, 14, 24, 30, 28, 30],
+          true
+        );
+        // Item lines
+        const items = getBillItems(b);
+        drawRow(["  Item", "Qty", "Rate", "Amount"], [80, 20, 30, 38]);
+        items.forEach(it => {
+          drawRow([`  ${it.name}`.slice(0, 42), String(it.qty), `Rs.${it.rate.toFixed(2)}`, `Rs.${it.amount.toFixed(2)}`], [80, 20, 30, 38]);
+        });
+        y += 2;
+      });
+      y += 4;
+
       // Footer band on each page
       const pageCount = pdf.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
