@@ -79,7 +79,7 @@ export const MaharajiLogo: React.FC<LogoProps> = ({ size = "md", animated = true
             y="0"
             width="200"
             height="200"
-            referrerPolicy="no-referrer"
+            
           />
         </g>
 

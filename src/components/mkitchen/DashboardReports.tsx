@@ -1450,7 +1450,7 @@ export const DashboardReports: React.FC = () => {
             <div className="h-64 mt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={tableChartData} margin={{ left: -10, right: 10, top: 10 }}>
-                  <XAxis dataKey="table" stroke="#5C4033" fontSize={8} tick={{ angle: -45, dy: 10 }} />
+                  <XAxis dataKey="table" stroke="#5C4033" fontSize={8} tick={{ dy: 10 } as any} />
                   <YAxis stroke="#5C4033" fontSize={9} />
                   <Tooltip />
                   <Bar dataKey="revenue" fill="#7B1E2B" radius={[4, 4, 0, 0]} />
