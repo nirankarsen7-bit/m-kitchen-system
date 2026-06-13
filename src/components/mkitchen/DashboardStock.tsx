@@ -428,13 +428,14 @@ export const DashboardStock: React.FC = () => {
       {/* F16: Supplier Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 -mt-2 pt-2 pb-2">
               <h3 className="font-serif text-lg font-bold text-maroon-royal">Record Supplier Payment</h3>
               <button onClick={() => setShowPaymentModal(false)} className="text-mocha hover:text-maroon-royal">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
 
             <div className="space-y-4">
               <FormInput
