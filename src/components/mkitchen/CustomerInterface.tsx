@@ -461,12 +461,22 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
                       />
+                      {/* Point 7: Veg / Non-Veg indicator */}
+                      <span
+                        className={`absolute top-1.5 left-1.5 inline-flex items-center justify-center w-5 h-5 border-2 rounded-sm bg-white shadow ${
+                          item.food_type === "non_veg" ? "border-red-600" : "border-green-600"
+                        }`}
+                        title={item.food_type === "non_veg" ? "Non-Veg" : "Veg"}
+                      >
+                        <span className={`block w-2.5 h-2.5 rounded-full ${item.food_type === "non_veg" ? "bg-red-600" : "bg-green-600"}`} />
+                      </span>
                       {!item.is_available && (
                         <div className="absolute inset-0 bg-charcoal-deep/60 backdrop-blur-[1px] flex items-center justify-center">
                           <span className="px-2 py-1 rounded bg-maroon-royal text-cream-ivory text-[9px] uppercase font-bold tracking-wider">Sold Out</span>
                         </div>
                       )}
                     </div>
+
 
                     {/* Metadata */}
                     <div className="space-y-1">
