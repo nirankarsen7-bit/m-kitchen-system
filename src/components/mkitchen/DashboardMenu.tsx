@@ -205,6 +205,15 @@ export const DashboardMenu: React.FC = () => {
                     <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-charcoal-deep/80 text-white text-[9px] uppercase tracking-wide">
                       {matchedCat?.name || "Dish"}
                     </span>
+                    {/* Point 7: Veg / Non-Veg indicator */}
+                    <span
+                      className={`absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 border-2 rounded-sm bg-white ${
+                        item.food_type === "non_veg" ? "border-red-600" : "border-green-600"
+                      }`}
+                      title={item.food_type === "non_veg" ? "Non-Veg" : "Veg"}
+                    >
+                      <span className={`block w-2.5 h-2.5 rounded-full ${item.food_type === "non_veg" ? "bg-red-600" : "bg-green-600"}`} />
+                    </span>
                     {!item.is_available && (
                       <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-mocha/80 text-cream-ivory text-[8px] uppercase font-bold tracking-wider">
                         Unavailable
