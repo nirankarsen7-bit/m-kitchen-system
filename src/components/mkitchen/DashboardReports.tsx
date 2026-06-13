@@ -840,56 +840,144 @@ export const DashboardReports: React.FC = () => {
     );
   };
 
-  // EXPORT 1: PDF Download (jspdf + html2canvas)
+  // EXPORT 1: PDF Download - structured text + tables (no html2canvas, no oklch issues)
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
     try {
-      const dashboardElement = document.getElementById("reports-dashboard-view");
-      if (!dashboardElement) return;
-
-      // Render high-res canvas scale
-      const canvas = await html2canvas(dashboardElement, {
-        scale: 1.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#FAF7F2"
-      });
-
-      const imgData = canvas.toDataURL("image/jpeg", 0.9);
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const finalW = imgWidth * ratio;
-      const finalH = imgHeight * ratio;
+      const marginX = 12;
+      let y = 0;
 
-      pdf.setFillColor("#7B1E2B");
-      pdf.rect(0, 0, pdfWidth, 12, "F");
-      pdf.setTextColor("#D4AF37");
-      pdf.setFont("serif", "bold");
+      // Header band
+      pdf.setFillColor(123, 30, 43);
+      pdf.rect(0, 0, pdfWidth, 18, "F");
+      pdf.setTextColor(212, 175, 55);
+      pdf.setFont("helvetica", "bold");
       pdf.setFontSize(14);
-      pdf.text("MAHARAJI KITCHEN - AUDITED ANALYTICS DOSSIER", 12, 8);
+      pdf.text("MAHARAJI KITCHEN", marginX, 8);
+      pdf.setFontSize(9);
+      pdf.setTextColor(250, 247, 242);
+      pdf.text("Sales / Stock / Payment Report", marginX, 14);
+      pdf.text(`Period: ${reportType} (${selectedDate})`, pdfWidth - marginX, 14, { align: "right" });
 
-      pdf.addImage(imgData, "JPEG", 0, 15, finalW, finalH);
-      
-      // Page styling additions
-      pdf.setFillColor("#7B1E2B");
-      pdf.rect(0, pdfHeight - 12, pdfWidth, 12, "F");
-      pdf.setTextColor("#FAF7F2");
-      pdf.setFontSize(8);
-      pdf.text(`NH31c West Bengal • +91 70764 30467 • Printed: ${new Date().toLocaleString()}`, 12, pdfHeight - 5);
+      y = 26;
+
+      const ensureSpace = (need: number) => {
+        if (y + need > pdfHeight - 18) {
+          pdf.addPage();
+          y = 18;
+        }
+      };
+
+      const sectionTitle = (title: string) => {
+        ensureSpace(10);
+        pdf.setFillColor(245, 240, 230);
+        pdf.rect(marginX, y - 4, pdfWidth - marginX * 2, 7, "F");
+        pdf.setTextColor(123, 30, 43);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.text(title, marginX + 2, y + 1);
+        y += 8;
+      };
+
+      const drawRow = (cells: string[], widths: number[], bold = false) => {
+        ensureSpace(7);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(45, 24, 16);
+        let cx = marginX;
+        cells.forEach((c, i) => {
+          pdf.text(String(c), cx + 1, y + 4);
+          cx += widths[i];
+        });
+        pdf.setDrawColor(220, 210, 195);
+        pdf.line(marginX, y + 6, pdfWidth - marginX, y + 6);
+        y += 6;
+      };
+
+      // 1. Executive Summary
+      sectionTitle("Executive Summary");
+      const summaryRows: [string, string][] = [
+        ["Total Closed Invoices", String(metrics.totalBills)],
+        ["Gross Sales Revenue", `Rs. ${metrics.totalRevenue.toFixed(2)}`],
+        ["Average Bill", `Rs. ${metrics.averageBill.toFixed(2)}`],
+        ["Total Stock Expenditure", `Rs. ${metrics.totalExpenses.toFixed(2)}`],
+        ["Total Supplier Payments", `Rs. ${metrics.totalSupplierPayments.toFixed(2)}`],
+        ["Cash In Hand", `Rs. ${metrics.inHandCash.toFixed(2)}`],
+        ["Net Profit / Loss", `Rs. ${metrics.netProfit.toFixed(2)}`],
+        ["Profit Margin", `${metrics.margin.toFixed(2)}%`],
+        ["Top Dish", `${metrics.topItem.name} (${metrics.topItem.qty} units)`]
+      ];
+      summaryRows.forEach(r => drawRow([r[0], r[1]], [110, 70]));
+      y += 4;
+
+      // 2. Bills ledger (top 30)
+      sectionTitle("Bills Ledger (latest 30)");
+      drawRow(["Invoice", "Table", "Subtotal", "Discount", "Total", "Date"], [40, 18, 28, 28, 28, 44], true);
+      filteredData.slice(0, 30).forEach(b => {
+        drawRow(
+          [
+            b.bill_number,
+            `T${b.table_number}`,
+            b.subtotal.toFixed(0),
+            b.discount.toFixed(0),
+            b.total.toFixed(0),
+            new Date(b.created_at).toLocaleDateString()
+          ],
+          [40, 18, 28, 28, 28, 44]
+        );
+      });
+      y += 4;
+
+      // 3. Item analytics
+      sectionTitle("Top Selling Dishes");
+      drawRow(["Dish", "Category", "Qty Sold", "Revenue"], [80, 50, 25, 31], true);
+      metrics.itemsAnalytics.slice(0, 25).forEach(it => {
+        drawRow([it.name, it.category, String(it.qty), `Rs.${it.revenue.toFixed(0)}`], [80, 50, 25, 31]);
+      });
+      y += 4;
+
+      // 4. Stock purchases
+      sectionTitle("Stock Purchases");
+      drawRow(["Date", "Item", "Qty", "Unit Price", "Total", "Supplier"], [26, 60, 22, 24, 24, 30], true);
+      parsedData.purchases.slice(0, 30).forEach(p => {
+        drawRow(
+          [
+            new Date(p.date).toLocaleDateString(),
+            p.item_name,
+            `${p.quantity}${p.unit}`,
+            `Rs.${p.unit_price}`,
+            `Rs.${p.total.toFixed(0)}`,
+            p.supplier || "-"
+          ],
+          [26, 60, 22, 24, 24, 30]
+        );
+      });
+
+      // Footer band on each page
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFillColor(123, 30, 43);
+        pdf.rect(0, pdfHeight - 10, pdfWidth, 10, "F");
+        pdf.setTextColor(250, 247, 242);
+        pdf.setFontSize(8);
+        pdf.text(`Maharaji Kitchen | Generated: ${new Date().toLocaleString()}`, marginX, pdfHeight - 4);
+        pdf.text(`Page ${i} / ${pageCount}`, pdfWidth - marginX, pdfHeight - 4, { align: "right" });
+      }
 
       pdf.save(`MaharajiKitchen_Report_${reportType}_${selectedDate}.pdf`);
+      toast.success("PDF report generated successfully!");
     } catch (e) {
-      toast.error("Error printing high-definition graphics. Generating standard print window.");
+      console.error(e);
+      toast.error("Failed to generate PDF report. Please try again.");
     } finally {
       setIsExportingPDF(false);
     }
   };
+
 
   // EXPORT 2: Excel Downloader with EXACTLY 9 Sheets
   const handleExportExcel = () => {
