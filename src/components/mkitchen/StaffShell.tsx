@@ -37,18 +37,21 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
   // Exact 10 sidebar links aligned with activeTab identifiers in App
   // F19: POS Settings renamed to System Settings
   // F7: Today's Offer renamed to Maharaji Special Discount
-  const sidebarItems = [
-    { name: "Live Dashboard", path: "live", icon: <Home className="w-5 h-5" /> },
-    { name: "Table Management", path: "tables", icon: <Grid className="w-5 h-5" /> },
-    { name: "Active Orders", path: "checkout", icon: <ClipboardList className="w-5 h-5" /> },
-    { name: "Menu Management", path: "menu", icon: <ChefHat className="w-5 h-5" /> },
-    { name: "Maharaji Special Discount", path: "offers", icon: <Gift className="w-5 h-5" /> },
-    { name: "Stock / Materials", path: "stock", icon: <Package className="w-5 h-5" /> },
-    { name: "Bills & History", path: "archive", icon: <FileText className="w-5 h-5" /> },
-    { name: "Reports & Stats", path: "stats", icon: <BarChart3 className="w-5 h-5" /> },
-    { name: "Table QR Codes", path: "qr", icon: <QrCode className="w-5 h-5" /> },
-    { name: "System Settings", path: "config", icon: <Settings className="w-5 h-5" /> }
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+  const allSidebarItems = [
+    { name: "Live Dashboard", path: "live", icon: <Home className="w-5 h-5" />, adminOnly: false },
+    { name: "Table Management", path: "tables", icon: <Grid className="w-5 h-5" />, adminOnly: false },
+    { name: "Active Orders", path: "checkout", icon: <ClipboardList className="w-5 h-5" />, adminOnly: false },
+    { name: "Menu Management", path: "menu", icon: <ChefHat className="w-5 h-5" />, adminOnly: false },
+    { name: "Maharaji Special Discount", path: "offers", icon: <Gift className="w-5 h-5" />, adminOnly: true },
+    { name: "Stock / Materials", path: "stock", icon: <Package className="w-5 h-5" />, adminOnly: false },
+    { name: "Bills & History", path: "archive", icon: <FileText className="w-5 h-5" />, adminOnly: false },
+    { name: "Reports & Stats", path: "stats", icon: <BarChart3 className="w-5 h-5" />, adminOnly: false },
+    { name: "Table QR Codes", path: "qr", icon: <QrCode className="w-5 h-5" />, adminOnly: false },
+    { name: "System Settings", path: "config", icon: <Settings className="w-5 h-5" />, adminOnly: true }
   ];
+  const sidebarItems = allSidebarItems.filter(item => !item.adminOnly || isAdmin);
+
 
   const handleLogout = () => {
     logout();
