@@ -104,14 +104,14 @@ const INITIAL_CATEGORIES: Category[] = [
 ];
 
 const INITIAL_MENU_ITEMS: MenuItem[] = [
-  { id: "items-1", category_id: "cat-1", name: "Lalquila Paneer Tikka", description: "Succulent cottage cheese cubes marinated in traditional fire-tandoori spices & clay baked.", price: 260.00, image_url: PREMIUM_FOOD_IMAGES.tikka, is_available: true },
-  { id: "items-2", category_id: "cat-1", name: "Dahi ke Shahi Kebab", description: "Yogurt patties spiced with fresh mint crumbs and shallow fried to an elegant golden skin.", price: 240.00, image_url: PREMIUM_FOOD_IMAGES.kebab, is_available: true },
-  { id: "items-3", category_id: "cat-2", name: "Paneer Butter Masala", description: "Creamy, hand-churned butter gravy simmered slowly with cottage cheese and tomato skin purees.", price: 280.00, image_url: PREMIUM_FOOD_IMAGES.paneer, is_available: true },
-  { id: "items-4", category_id: "cat-2", name: "Dal Maharaji Dum", description: "Traditional black beans boiled overnight across smoldering coals with rich fresh sweet milks.", price: 220.00, image_url: PREMIUM_FOOD_IMAGES.dal, is_available: true },
-  { id: "items-5", category_id: "cat-3", name: "Subz Dum Biryani", description: "Fine aged basmati rice cooked on slow dum pressure steam with fresh organic herbs.", price: 320.00, image_url: PREMIUM_FOOD_IMAGES.biryani, is_available: true },
-  { id: "items-6", category_id: "cat-4", name: "Butter Naan", description: "Clay yard tandoor flatbread brushed with organic Amul dairy butter.", price: 40.00, image_url: PREMIUM_FOOD_IMAGES.naan, is_available: true },
-  { id: "items-7", category_id: "cat-4", name: "Garlic Naan", description: "Fine flatbread folded in crushed roasted lock garlic and chopped cilantro leaves.", price: 50.00, image_url: PREMIUM_FOOD_IMAGES.naan, is_available: true },
-  { id: "items-8", category_id: "cat-5", name: "Kesari Shahi Tukda", description: "Crisp pan ghee-fried bread rounds drenched with pure saffron rabri and cashew cream.", price: 160.00, image_url: PREMIUM_FOOD_IMAGES.mithai, is_available: true }
+  { id: "items-1", category_id: "cat-1", name: "Lalquila Paneer Tikka", description: "Succulent cottage cheese cubes marinated in traditional fire-tandoori spices & clay baked.", price: 260.00, image_url: PREMIUM_FOOD_IMAGES.tikka, is_available: true, food_type: "veg" },
+  { id: "items-2", category_id: "cat-1", name: "Dahi ke Shahi Kebab", description: "Yogurt patties spiced with fresh mint crumbs and shallow fried to an elegant golden skin.", price: 240.00, image_url: PREMIUM_FOOD_IMAGES.kebab, is_available: true, food_type: "veg" },
+  { id: "items-3", category_id: "cat-2", name: "Paneer Butter Masala", description: "Creamy, hand-churned butter gravy simmered slowly with cottage cheese and tomato skin purees.", price: 280.00, image_url: PREMIUM_FOOD_IMAGES.paneer, is_available: true, food_type: "veg" },
+  { id: "items-4", category_id: "cat-2", name: "Dal Maharaji Dum", description: "Traditional black beans boiled overnight across smoldering coals with rich fresh sweet milks.", price: 220.00, image_url: PREMIUM_FOOD_IMAGES.dal, is_available: true, food_type: "veg" },
+  { id: "items-5", category_id: "cat-3", name: "Subz Dum Biryani", description: "Fine aged basmati rice cooked on slow dum pressure steam with fresh organic herbs.", price: 320.00, image_url: PREMIUM_FOOD_IMAGES.biryani, is_available: true, food_type: "veg" },
+  { id: "items-6", category_id: "cat-4", name: "Butter Naan", description: "Clay yard tandoor flatbread brushed with organic Amul dairy butter.", price: 40.00, image_url: PREMIUM_FOOD_IMAGES.naan, is_available: true, food_type: "veg" },
+  { id: "items-7", category_id: "cat-4", name: "Garlic Naan", description: "Fine flatbread folded in crushed roasted lock garlic and chopped cilantro leaves.", price: 50.00, image_url: PREMIUM_FOOD_IMAGES.naan, is_available: true, food_type: "veg" },
+  { id: "items-8", category_id: "cat-5", name: "Kesari Shahi Tukda", description: "Crisp pan ghee-fried bread rounds drenched with pure saffron rabri and cashew cream.", price: 160.00, image_url: PREMIUM_FOOD_IMAGES.mithai, is_available: true, food_type: "veg" }
 ];
 
 const INITIAL_OFFERS: TodaysOffer[] = [
