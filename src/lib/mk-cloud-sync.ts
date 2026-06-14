@@ -34,6 +34,7 @@ const STORAGE_KEY_BY_STATE_KEY: Record<(typeof SHARED_KEYS)[number], string> = {
   coupons: "coupons",
   stockPurchases: "stock_purchases",
   materialUsages: "material_usages",
+  menuRecipes: "menu_recipes",
   supplierPayments: "supplier_payments",
   couponSettings: "coupon_settings",
   system: "system",
