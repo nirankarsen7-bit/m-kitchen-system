@@ -21,6 +21,38 @@ import {
   CouponSettings
 } from "@/lib/mk-types";
 
+// Knowledge Base parser: turn a long free-form recipe text into per-plate ingredient rows.
+// Accepts lines or comma/semicolon separated entries like:
+//   "Paneer 120g", "Basmati Rice - 80 g", "Mustard Oil: 15 ml", "Onion 1 unit"
+type ParsedIngredient = { material_name: string; quantity_per_plate: number; unit: string };
+const normalizeUnit = (raw: string | undefined): string => {
+  if (!raw) return "g";
+  const u = raw.toLowerCase().replace(/\.$/, "");
+  if (["g", "gram", "grams", "gm", "gms"].includes(u)) return "g";
+  if (["kg", "kgs", "kilogram", "kilograms"].includes(u)) return "kg";
+  if (["ml", "millilitre", "milliliter", "millilitres", "milliliters"].includes(u)) return "ml";
+  if (["l", "lt", "ltr", "litre", "liter", "litres", "liters"].includes(u)) return "litres";
+  if (["pc", "pcs", "piece", "pieces", "unit", "units", "nos", "no"].includes(u)) return "units";
+  return u;
+};
+export function parseRecipeText(text: string): ParsedIngredient[] {
+  if (!text) return [];
+  const segments = text.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+  const out: ParsedIngredient[] = [];
+  for (const seg of segments) {
+    const cleaned = seg.replace(/^[-•*\d.)\s]+/, "").trim();
+    // name <sep> qty <unit?>
+    const m = cleaned.match(/^(.+?)[\s:=\-–—]+(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\.?$/);
+    if (!m) continue;
+    const name = m[1].trim().replace(/[-:–—]+$/, "").trim();
+    const qty = parseFloat(m[2]);
+    const unit = normalizeUnit(m[3]);
+    if (!name || isNaN(qty) || qty <= 0) continue;
+    out.push({ material_name: name, quantity_per_plate: qty, unit });
+  }
+  return out;
+}
+
 // Premium Curated Unsplash images dictionary for Indian foods
 const PREMIUM_FOOD_IMAGES: Record<string, string> = {
   paneer: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&q=80",
@@ -243,6 +275,11 @@ interface AppState {
   deleteMaterialUsage: (id: string) => void;
   getLowStockMaterials: () => { material: string; currentStock: number; estimatedUsage: number; totalPurchased: number; percentConsumed: number; unit: string }[];
 
+  // Knowledge Base: per-menu-item raw recipe text (F11 — long text)
+  menuRecipes: Record<string, string>;
+  setMenuRecipe: (menuItemId: string, recipeText: string) => void;
+  deleteMenuRecipe: (menuItemId: string) => void;
+
   // Supplier payments (F16)
   supplierPayments: SupplierPayment[];
   addSupplierPayment: (payment: Omit<SupplierPayment, "id" | "created_at">) => void;
@@ -280,6 +317,7 @@ export const useStore = create<AppState>((set, get) => {
   const stockPurchases = getLocalStorage<StockPurchase[]>("stock_purchases", []);
   const auditLogs = getLocalStorage<AuditLog[]>("audit_logs", []);
   const materialUsages = getLocalStorage<MaterialUsage[]>("material_usages", []);
+  const menuRecipes = getLocalStorage<Record<string, string>>("menu_recipes", {});
   const supplierPayments = getLocalStorage<SupplierPayment[]>("supplier_payments", []);
   const couponSettings = getLocalStorage<CouponSettings>("coupon_settings", DEFAULT_COUPON_SETTINGS);
   const system = getLocalStorage<typeof DEFAULT_SYSTEM_SETTINGS>("system", DEFAULT_SYSTEM_SETTINGS);
@@ -309,6 +347,7 @@ export const useStore = create<AppState>((set, get) => {
     coupons,
     stockPurchases,
     materialUsages,
+    menuRecipes,
     supplierPayments,
     couponSettings,
     auditLogs,
@@ -899,6 +938,39 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("material_usages", updated);
     },
 
+    // Knowledge Base: parse a long recipe text into per-plate MaterialUsage rows
+    setMenuRecipe: (menuItemId, recipeText) => {
+      const recipes = { ...get().menuRecipes, [menuItemId]: recipeText };
+      set({ menuRecipes: recipes });
+      saveToStorage("menu_recipes", recipes);
+
+      // Parse text -> materialUsages and REPLACE existing entries for this dish
+      const parsed = parseRecipeText(recipeText);
+      const others = get().materialUsages.filter(mu => mu.menu_item_id !== menuItemId);
+      const fresh: MaterialUsage[] = parsed.map((p, idx) => ({
+        id: `mu-${menuItemId}-${Date.now()}-${idx}`,
+        menu_item_id: menuItemId,
+        material_name: p.material_name,
+        quantity_per_plate: p.quantity_per_plate,
+        unit: p.unit,
+      }));
+      const merged = [...others, ...fresh];
+      set({ materialUsages: merged });
+      saveToStorage("material_usages", merged);
+      get().logAudit("MENU_RECIPE_SAVED", `Saved knowledge base recipe for menu item ${menuItemId} (${parsed.length} ingredients parsed).`);
+    },
+
+    deleteMenuRecipe: (menuItemId) => {
+      const recipes = { ...get().menuRecipes };
+      delete recipes[menuItemId];
+      set({ menuRecipes: recipes });
+      saveToStorage("menu_recipes", recipes);
+      const remaining = get().materialUsages.filter(mu => mu.menu_item_id !== menuItemId);
+      set({ materialUsages: remaining });
+      saveToStorage("material_usages", remaining);
+      get().logAudit("MENU_RECIPE_DELETED", `Deleted knowledge base recipe for menu item ${menuItemId}.`);
+    },
+
     getLowStockMaterials: () => {
       // Sum total purchased per material name (case-insensitive match against stock item_name)
       const purchasedByName: Record<string, { total: number; unit: string; display: string }> = {};
@@ -1000,6 +1072,7 @@ export const useStore = create<AppState>((set, get) => {
         coupons: INITIAL_COUPONS,
         stockPurchases: [],
         materialUsages: [],
+        menuRecipes: {},
         supplierPayments: [],
         auditLogs: [], // Clear all logs too
         currentUser: get().currentUser // Keep Admin logged in!
@@ -1017,6 +1090,7 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("coupons", INITIAL_COUPONS);
       saveToStorage("stock_purchases", []);
       saveToStorage("material_usages", []);
+      saveToStorage("menu_recipes", {});
       saveToStorage("supplier_payments", []);
       saveToStorage("audit_logs", []); // Clear all logs
       saveToStorage("system", get().system); // Preserve active config

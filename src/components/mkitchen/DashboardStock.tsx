@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { useStore } from "@/lib/mk-store";
+import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight } from "lucide-react";
@@ -14,11 +14,12 @@ export const DashboardStock: React.FC = () => {
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
 
-  // F11 / F8: Material usage tracking
+  // F11 / F8: Material usage tracking (Knowledge Base recipe text per menu item)
   const menuItems = useStore(state => state.menuItems);
   const materialUsages = useStore(state => state.materialUsages);
-  const addMaterialUsage = useStore(state => state.addMaterialUsage);
-  const deleteMaterialUsage = useStore(state => state.deleteMaterialUsage);
+  const menuRecipes = useStore(state => state.menuRecipes);
+  const setMenuRecipe = useStore(state => state.setMenuRecipe);
+  const deleteMenuRecipe = useStore(state => state.deleteMenuRecipe);
   const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
 
   // Form States
@@ -29,11 +30,9 @@ export const DashboardStock: React.FC = () => {
   const [supplier, setSupplier] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Material usage form states
-  const [muMenuItemId, setMuMenuItemId] = useState("");
-  const [muMaterialName, setMuMaterialName] = useState("");
-  const [muQtyPerPlate, setMuQtyPerPlate] = useState("");
-  const [muUnit, setMuUnit] = useState("g");
+  // Knowledge Base recipe form states
+  const [recipeMenuItemId, setRecipeMenuItemId] = useState("");
+  const [recipeText, setRecipeText] = useState("");
 
   // Supplier Payment Modal States (F16)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -56,24 +55,21 @@ export const DashboardStock: React.FC = () => {
   // Calculate low stock from store helper
   const lowStockList = getLowStockMaterials();
 
-  const handleSaveMaterialUsage = (e: React.FormEvent) => {
+  const handleSaveRecipe = (e: React.FormEvent) => {
     e.preventDefault();
-    const qtyVal = parseFloat(muQtyPerPlate);
-    if (!muMenuItemId || !muMaterialName.trim() || isNaN(qtyVal) || qtyVal <= 0) {
-      toast.error("Please select a dish, material name and valid per-plate quantity.");
+    if (!recipeMenuItemId) {
+      toast.error("Please select a menu item first.");
       return;
     }
-    addMaterialUsage({
-      menu_item_id: muMenuItemId,
-      material_name: muMaterialName.trim(),
-      quantity_per_plate: qtyVal,
-      unit: muUnit
-    });
-    setMuMenuItemId("");
-    setMuMaterialName("");
-    setMuQtyPerPlate("");
-    setMuUnit("g");
-    toast.success("Material per-plate usage saved!");
+    if (!recipeText.trim()) {
+      toast.error("Please write the per-plate ingredients in the text area.");
+      return;
+    }
+    setMenuRecipe(recipeMenuItemId, recipeText.trim());
+    const dish = menuItems.find(m => m.id === recipeMenuItemId);
+    toast.success(`Knowledge base updated for "${dish?.name ?? "dish"}"`);
+    setRecipeMenuItemId("");
+    setRecipeText("");
   };
 
 
@@ -541,119 +537,163 @@ export const DashboardStock: React.FC = () => {
           <div>
             <h3 className="font-serif text-xl font-bold text-maroon-royal flex items-center gap-1.5">
               <Scale className="w-5 h-5 text-gold-rich" />
-              Raw Material Per-Plate Usage Tracking
+              Knowledge Base — Per-Plate Recipes
             </h3>
             <p className="text-xs text-mocha mt-1">
-              Define how much of each raw material is used per plate for each menu item. The system uses this with sales data to compute low-stock alerts automatically.
+              Select a menu item and write all the raw ingredients with quantities for <span className="font-semibold text-maroon-royal">one plate</span>.
+              The system parses this Knowledge Base and uses it with confirmed sales to track raw material consumption and low-stock alerts automatically.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left: Add form */}
-            <form onSubmit={handleSaveMaterialUsage} className="lg:col-span-5 bg-white p-5 rounded-2xl border border-gold-rich/10 shadow-sm space-y-4">
+            {/* Left: Recipe text form */}
+            <form onSubmit={handleSaveRecipe} className="lg:col-span-5 bg-white p-5 rounded-2xl border border-gold-rich/10 shadow-sm space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
-                Add Per-Plate Usage
+                Add / Update Recipe
               </h4>
 
               <div>
                 <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Menu Item (Dish)</label>
                 <select
-                  value={muMenuItemId}
-                  onChange={(e) => setMuMenuItemId(e.target.value)}
+                  value={recipeMenuItemId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setRecipeMenuItemId(id);
+                    setRecipeText(id ? (menuRecipes[id] ?? "") : "");
+                  }}
                   className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
                   required
                 >
                   <option value="">— Select a menu dish —</option>
-                  {menuItems.map(mi => (
-                    <option key={mi.id} value={mi.id}>{mi.name}</option>
-                  ))}
+                  {menuItems.map(mi => {
+                    const has = !!menuRecipes[mi.id];
+                    return (
+                      <option key={mi.id} value={mi.id}>
+                        {mi.name}{has ? "  ✓" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
-              <FormInput
-                label="Raw Material Name"
-                value={muMaterialName}
-                onChange={(e) => setMuMaterialName(e.target.value)}
-                placeholder="eg. Paneer, Basmati Rice, Mustard Oil"
-                required
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormInput
-                  label="Qty Per Plate"
-                  type="number"
-                  value={muQtyPerPlate}
-                  onChange={(e) => setMuQtyPerPlate(e.target.value)}
-                  placeholder="eg. 120"
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">
+                  Ingredients for 1 Plate (one per line)
+                </label>
+                <textarea
+                  value={recipeText}
+                  onChange={(e) => setRecipeText(e.target.value)}
+                  rows={9}
+                  placeholder={`Example (one ingredient per line):\nPaneer 120 g\nBasmati Rice 80 g\nOnion 50 g\nTomato 40 g\nMustard Oil 15 ml\nGaram Masala 2 g\nSalt 3 g`}
+                  className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich font-mono leading-relaxed"
                   required
                 />
-                <div>
-                  <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Unit</label>
-                  <select
-                    value={muUnit}
-                    onChange={(e) => setMuUnit(e.target.value)}
-                    className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
-                  >
-                    <option value="g">Grams (g)</option>
-                    <option value="kg">Kilograms (kg)</option>
-                    <option value="ml">Millilitres (ml)</option>
-                    <option value="litres">Litres (L)</option>
-                    <option value="units">Units (pcs)</option>
-                  </select>
-                </div>
+                <p className="text-[10px] text-mocha mt-1.5 leading-relaxed">
+                  Supported units: <span className="font-semibold">g, kg, ml, litres, units (pcs)</span>.
+                  Format: <span className="font-mono">Ingredient name &lt;qty&gt; &lt;unit&gt;</span>. Comma or new line both work.
+                </p>
               </div>
+
+              {/* Live parse preview */}
+              {recipeText.trim() && (
+                <div className="bg-[#FAF7F2] border border-gold-rich/15 rounded-xl p-3">
+                  <p className="text-[9px] uppercase font-bold tracking-wider text-maroon-royal mb-1.5">Parsed Preview</p>
+                  {(() => {
+                    const parsed = parseRecipeText(recipeText);
+                    if (parsed.length === 0) {
+                      return <p className="text-[11px] text-red-600">No ingredients detected — check format.</p>;
+                    }
+                    return (
+                      <ul className="text-[11px] text-espresso space-y-0.5">
+                        {parsed.map((p, i) => (
+                          <li key={i} className="flex justify-between border-b border-dashed border-gold-rich/15 py-0.5 last:border-0">
+                            <span>{p.material_name}</span>
+                            <span className="font-mono font-bold text-maroon-royal">{p.quantity_per_plate} {p.unit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </div>
+              )}
 
               <Button type="submit" variant="primary" className="w-full py-3 text-xs uppercase font-bold tracking-wider">
                 <Plus className="w-4 h-4" />
-                <span>Save Usage Recipe</span>
+                <span>Save Recipe to Knowledge Base</span>
               </Button>
             </form>
 
-            {/* Right: List of saved usages */}
+            {/* Right: Saved recipes per menu item */}
             <div className="lg:col-span-7 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
-                Saved Per-Plate Recipes ({materialUsages.length})
+                Saved Recipes ({Object.keys(menuRecipes).length})
               </h4>
 
-              {materialUsages.length === 0 ? (
+              {Object.keys(menuRecipes).length === 0 ? (
                 <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
                   <ChefHat className="w-8 h-8 text-gold-rich/40 mx-auto" />
-                  <p className="text-[11px] text-mocha mt-2">No per-plate recipes saved yet. Add the first one on the left.</p>
+                  <p className="text-[11px] text-mocha mt-2">No recipes saved yet. Add the first one on the left.</p>
                 </div>
               ) : (
-                <div className="bg-white border border-gold-rich/10 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto max-h-[320px] overflow-y-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-[#FAF7F2]">
-                        <tr className="text-[9px] uppercase font-bold tracking-wider text-maroon-royal border-b border-gold-rich/10">
-                          <th className="p-3">Menu Dish</th>
-                          <th className="p-3">Material</th>
-                          <th className="p-3">Per Plate</th>
-                          <th className="p-3">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gold-rich/5 text-xs">
-                        {materialUsages.map(mu => {
-                          const dish = menuItems.find(m => m.id === mu.menu_item_id);
-                          return (
-                            <tr key={mu.id} className="hover:bg-[#FAF7F2]/40">
-                              <td className="p-3 font-semibold text-espresso">{dish?.name || "Unknown dish"}</td>
-                              <td className="p-3 text-mocha">{mu.material_name}</td>
-                              <td className="p-3 font-mono font-bold text-maroon-royal">{mu.quantity_per_plate} {mu.unit}</td>
-                              <td className="p-3">
-                                <button
-                                  onClick={() => deleteMaterialUsage(mu.id)}
-                                  className="p-1 rounded bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {Object.entries(menuRecipes).map(([menuItemId, text]) => {
+                    const dish = menuItems.find(m => m.id === menuItemId);
+                    const items = materialUsages.filter(mu => mu.menu_item_id === menuItemId);
+                    return (
+                      <div key={menuItemId} className="bg-white border border-gold-rich/10 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="font-serif text-base font-bold text-maroon-royal">
+                              {dish?.name || "Unknown dish"}
+                            </p>
+                            <p className="text-[10px] text-mocha uppercase tracking-wider">
+                              {items.length} ingredient{items.length === 1 ? "" : "s"} · per plate
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRecipeMenuItemId(menuItemId);
+                                setRecipeText(text);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-gold-rich/10 text-maroon-royal text-[10px] font-bold uppercase tracking-wider hover:bg-gold-rich/20 cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Delete recipe for "${dish?.name ?? "this dish"}"?`)) {
+                                  deleteMenuRecipe(menuItemId);
+                                  if (recipeMenuItemId === menuItemId) {
+                                    setRecipeMenuItemId("");
+                                    setRecipeText("");
+                                  }
+                                  toast.success("Recipe deleted");
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        {items.length > 0 ? (
+                          <ul className="text-xs text-espresso grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                            {items.map(mu => (
+                              <li key={mu.id} className="flex justify-between border-b border-dashed border-gold-rich/10 py-1">
+                                <span className="text-mocha">{mu.material_name}</span>
+                                <span className="font-mono font-bold text-maroon-royal">{mu.quantity_per_plate} {mu.unit}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[11px] text-red-600">No ingredients parsed — please re-check the format.</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
