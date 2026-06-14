@@ -315,6 +315,7 @@ export const useStore = create<AppState>((set, get) => {
     coupons,
     stockPurchases,
     materialUsages,
+    menuRecipes,
     supplierPayments,
     couponSettings,
     auditLogs,
