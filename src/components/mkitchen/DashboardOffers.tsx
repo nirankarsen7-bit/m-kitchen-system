@@ -447,58 +447,39 @@ export const DashboardOffers: React.FC = () => {
 
       </div>
 
-      {/* COUPON GENERATOR INSERT MODAL */}
+      {/* SPECIAL DISCOUNT COUPON MODAL */}
       {isCoupModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <h3 className="font-serif text-lg font-bold text-maroon-royal mb-4">Add Ticket Coupon</h3>
+            <h3 className="font-serif text-lg font-bold text-maroon-royal mb-1 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-gold-rich" /> Create Special Discount Coupon
+            </h3>
+            <p className="text-[11px] text-mocha mb-4">Flat discount, no minimum purchase. Reusable across bills (once per bill).</p>
 
             <form onSubmit={handleSaveCoupon} className="space-y-4">
               <FormInput
-                label="Coupon Alpha-numeric Code"
+                label="Coupon Code"
                 value={coupCode}
                 onChange={(e) => setCoupCode(e.target.value.toUpperCase())}
-                placeholder="eg. ROYAL30"
+                placeholder="eg. MAHA200"
                 required
               />
 
-              <div className="relative mb-5 font-sans">
-                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Discount Style</label>
-                <select
-                  value={coupType}
-                  onChange={(e) => setCoupType(e.target.value as any)}
-                  className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
-                >
-                  <option value="flat">Flat Cash Discount (INR)</option>
-                  <option value="percentage">Percentage Discount (%)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormInput
-                  label="Face Value"
-                  type="number"
-                  value={coupValue}
-                  onChange={(e) => setCoupValue(e.target.value)}
-                  placeholder="price or pct amount"
-                  required
-                />
-                <FormInput
-                  label="Min Purchase Threshold"
-                  type="number"
-                  value={coupMinBuy}
-                  onChange={(e) => setCoupMinBuy(e.target.value)}
-                  placeholder="eg. 1000"
-                  required
-                />
-              </div>
+              <FormInput
+                label="Flat Discount Amount (₹)"
+                type="number"
+                value={coupValue}
+                onChange={(e) => setCoupValue(e.target.value)}
+                placeholder="eg. 100, 200, 500"
+                required
+              />
 
               <div className="flex gap-2 pt-2 justify-end">
                 <Button variant="ghost" size="sm" type="button" onClick={() => setIsCoupModalOpen(false)}>
                   Discard
                 </Button>
                 <Button variant="primary" size="sm" type="submit" className="font-bold">
-                  <span>Generate Ticket</span>
+                  <span>Create Coupon</span>
                 </Button>
               </div>
             </form>
