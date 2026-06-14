@@ -2,6 +2,7 @@ import { createFileRoute, ClientOnly } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Toaster } from "sonner";
 import { useStore } from "@/lib/mk-store";
+import { useMaharajiCloudSync } from "@/lib/mk-cloud-sync";
 import { CustomerInterface } from "@/components/mkitchen/CustomerInterface";
 import { LoginScreen } from "@/components/mkitchen/LoginScreen";
 import { WelcomeScreen } from "@/components/mkitchen/WelcomeScreen";
@@ -66,6 +67,7 @@ function LoadingScreen() {
 function AppShell() {
   const currentUser = useStore((s) => s.currentUser);
   const isAuthenticated = !!currentUser;
+  useMaharajiCloudSync();
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
 

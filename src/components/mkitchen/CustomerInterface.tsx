@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "@/lib/mk-store";
+import { useMaharajiCloudSync } from "@/lib/mk-cloud-sync";
 import { TableStatus, OrderItemStatus } from "@/lib/mk-types";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -37,7 +38,7 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
   const addOrder = useStore(state => state.addOrder);
   const addPendingItems = useStore(state => state.addPendingItems);
   const validateCoupon = useStore(state => state.validateCoupon);
-  const unlockTable = useStore(state => state.unlockTable);
+  const isCloudReady = useMaharajiCloudSync();
 
   // Local UI states
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -60,16 +61,14 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
     }
   }, [categories, activeCategory]);
 
-  // QR scan auto-access: customer device has its own local state (no shared backend),
-  // so if they arrived via QR (?table=N) the table should be available for browsing.
-  // Auto-unlock locally on this device so the menu opens without needing reception to "unlock" it
-  // again on the customer's phone.
-  useEffect(() => {
-    if (targetTable && (targetTable.status === TableStatus.LOCKED || targetTable.status === TableStatus.CLOSED)) {
-      unlockTable(targetTable.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetTable?.id]);
+  if (!isCloudReady) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-cream-soft text-center font-sans">
+        <MaharajiLogo size="lg" />
+        <p className="mt-5 text-sm font-semibold text-maroon-royal animate-pulse">Opening table menu…</p>
+      </div>
+    );
+  }
 
   if (isNaN(tableNum) || tableNum < 1 || tableNum > 20 || !targetTable) {
     return (
