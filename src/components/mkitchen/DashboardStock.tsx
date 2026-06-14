@@ -14,11 +14,12 @@ export const DashboardStock: React.FC = () => {
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
 
-  // F11 / F8: Material usage tracking
+  // F11 / F8: Material usage tracking (Knowledge Base recipe text per menu item)
   const menuItems = useStore(state => state.menuItems);
   const materialUsages = useStore(state => state.materialUsages);
-  const addMaterialUsage = useStore(state => state.addMaterialUsage);
-  const deleteMaterialUsage = useStore(state => state.deleteMaterialUsage);
+  const menuRecipes = useStore(state => state.menuRecipes);
+  const setMenuRecipe = useStore(state => state.setMenuRecipe);
+  const deleteMenuRecipe = useStore(state => state.deleteMenuRecipe);
   const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
 
   // Form States
@@ -29,11 +30,9 @@ export const DashboardStock: React.FC = () => {
   const [supplier, setSupplier] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Material usage form states
-  const [muMenuItemId, setMuMenuItemId] = useState("");
-  const [muMaterialName, setMuMaterialName] = useState("");
-  const [muQtyPerPlate, setMuQtyPerPlate] = useState("");
-  const [muUnit, setMuUnit] = useState("g");
+  // Knowledge Base recipe form states
+  const [recipeMenuItemId, setRecipeMenuItemId] = useState("");
+  const [recipeText, setRecipeText] = useState("");
 
   // Supplier Payment Modal States (F16)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
