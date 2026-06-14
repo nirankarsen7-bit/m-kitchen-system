@@ -1007,6 +1007,7 @@ export const useStore = create<AppState>((set, get) => {
         coupons: INITIAL_COUPONS,
         stockPurchases: [],
         materialUsages: [],
+        menuRecipes: {},
         supplierPayments: [],
         auditLogs: [], // Clear all logs too
         currentUser: get().currentUser // Keep Admin logged in!
