@@ -67,7 +67,6 @@ function LoadingScreen() {
 function AppShell() {
   const currentUser = useStore((s) => s.currentUser);
   const isAuthenticated = !!currentUser;
-  useMaharajiCloudSync();
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
 
@@ -166,6 +165,7 @@ function AppShell() {
 
   return (
     <>
+      <StaffCloudSync />
       <StaffShell activeTab={activeTab} setActiveTab={setActiveTab}>
         {renderTabContent()}
       </StaffShell>
@@ -173,4 +173,9 @@ function AppShell() {
       {toasterEl}
     </>
   );
+}
+
+function StaffCloudSync() {
+  useMaharajiCloudSync();
+  return null;
 }
