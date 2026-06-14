@@ -114,9 +114,13 @@ export const DashboardActiveOrders: React.FC = () => {
 
   const handleFinalCheckout = () => {
     if (settleTableNum === null) return;
-    checkoutBill(settleTableNum, settleCouponCode || undefined);
-    toast.success(`Royal billing settled and Table ${settleTableNum} locked successfully!`);
-    setSettleTableNum(null);
+    const settled = checkoutBill(settleTableNum, settleCouponCode || undefined);
+    if (settled) {
+      toast.success(`Bill received. Table ${settleTableNum} is now closed and locked.`);
+      setSettleTableNum(null);
+      return;
+    }
+    toast.error("No active bill found for this table. Please refresh and try again.");
   };
 
   // LUXURIOUS HIGH-FIDELITY VECTOR PDF GENERATION (JSPDF)
