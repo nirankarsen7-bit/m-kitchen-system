@@ -586,38 +586,12 @@ export const DashboardOffers: React.FC = () => {
     }
   };
 
-  // Download voucher as PDF — neutralise oklch borders that html2canvas can't parse
-  const handleDownloadCoupon = async (couponId: string, code: string) => {
-    const node = voucherRefs.current[couponId];
-    if (!node) {
-      toast.error("Voucher not ready yet.");
-      return;
-    }
-    toast.loading("Generating coupon PDF...", { id: "dl-" + couponId });
+  // Download voucher as JPG image — direct canvas drawing avoids html2canvas oklch failures
+  const handleDownloadCoupon = async (couponId: string, coupon: CouponDownloadData) => {
+    toast.loading("Generating coupon JPG...", { id: "dl-" + couponId });
     try {
-      const canvas = await html2canvas(node, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        onclone: (doc) => {
-          doc.querySelectorAll<HTMLElement>("*").forEach((el) => {
-            const cs = doc.defaultView?.getComputedStyle(el);
-            if (cs?.borderColor && cs.borderColor.includes("oklch")) {
-              el.style.borderColor = "transparent";
-            }
-            if (cs?.color && cs.color.includes("oklch")) {
-              el.style.color = "#1C1917";
-            }
-          });
-        },
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [160, 90] });
-      pdf.addImage(imgData, "PNG", 0, 0, 160, 90);
-      pdf.save(`Maharaji-Coupon-${code}.pdf`);
-      toast.success("Coupon downloaded!", { id: "dl-" + couponId });
+      await downloadCouponAsJpg(coupon);
+      toast.success("Coupon JPG downloaded!", { id: "dl-" + couponId });
     } catch (err) {
       console.error("Coupon download failed:", err);
       toast.error("Download failed. Please try again.", { id: "dl-" + couponId });
