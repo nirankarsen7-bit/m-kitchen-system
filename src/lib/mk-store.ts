@@ -708,7 +708,7 @@ export const useStore = create<AppState>((set, get) => {
     checkoutBill: (table_number, coupon_code) => {
       // Find active order for this table
       const activeOrder = get().orders.find(o => o.table_number === table_number && o.status !== "completed" && o.status !== "cancelled");
-      if (!activeOrder) return;
+      if (!activeOrder) return false;
 
       // Find all confirmed items associated with this active order
       const confirmedItems = get().orderItems.filter(oi => oi.order_id === activeOrder.id && oi.status === OrderItemStatus.CONFIRMED);
@@ -759,10 +759,10 @@ export const useStore = create<AppState>((set, get) => {
       const updatedBills = [...get().bills, newClosedBill];
       
       // Update completed orders
-      const updatedOrders = get().orders.map(o => o.id === activeOrder.id ? { ...o, status: "completed" as const } : o);
+      const updatedOrders = get().orders.map(o => o.id === activeOrder.id ? { ...o, status: "completed" as const, updated_at: new Date().toISOString() } : o);
 
       // Lock table on close
-      const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED } : t);
+      const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
 
       // Auto generate coupon if bill >= configured min purchase (F6)
       const couponCfg = get().couponSettings;
@@ -798,6 +798,7 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("coupons", updatedCouponsList);
 
       get().logAudit("BILL_CLOSED", `Settled payment of ₹${finalTotal.toFixed(2)} on Table ${table_number}.`);
+      return true;
     },
 
     // Promotions
