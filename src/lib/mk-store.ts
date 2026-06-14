@@ -906,6 +906,39 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("material_usages", updated);
     },
 
+    // Knowledge Base: parse a long recipe text into per-plate MaterialUsage rows
+    setMenuRecipe: (menuItemId, recipeText) => {
+      const recipes = { ...get().menuRecipes, [menuItemId]: recipeText };
+      set({ menuRecipes: recipes });
+      saveToStorage("menu_recipes", recipes);
+
+      // Parse text -> materialUsages and REPLACE existing entries for this dish
+      const parsed = parseRecipeText(recipeText);
+      const others = get().materialUsages.filter(mu => mu.menu_item_id !== menuItemId);
+      const fresh: MaterialUsage[] = parsed.map((p, idx) => ({
+        id: `mu-${menuItemId}-${Date.now()}-${idx}`,
+        menu_item_id: menuItemId,
+        material_name: p.material_name,
+        quantity_per_plate: p.quantity_per_plate,
+        unit: p.unit,
+      }));
+      const merged = [...others, ...fresh];
+      set({ materialUsages: merged });
+      saveToStorage("material_usages", merged);
+      get().logAudit("MENU_RECIPE_SAVED", `Saved knowledge base recipe for menu item ${menuItemId} (${parsed.length} ingredients parsed).`);
+    },
+
+    deleteMenuRecipe: (menuItemId) => {
+      const recipes = { ...get().menuRecipes };
+      delete recipes[menuItemId];
+      set({ menuRecipes: recipes });
+      saveToStorage("menu_recipes", recipes);
+      const remaining = get().materialUsages.filter(mu => mu.menu_item_id !== menuItemId);
+      set({ materialUsages: remaining });
+      saveToStorage("material_usages", remaining);
+      get().logAudit("MENU_RECIPE_DELETED", `Deleted knowledge base recipe for menu item ${menuItemId}.`);
+    },
+
     getLowStockMaterials: () => {
       // Sum total purchased per material name (case-insensitive match against stock item_name)
       const purchasedByName: Record<string, { total: number; unit: string; display: string }> = {};
