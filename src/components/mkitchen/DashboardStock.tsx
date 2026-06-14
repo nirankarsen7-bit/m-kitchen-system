@@ -55,24 +55,21 @@ export const DashboardStock: React.FC = () => {
   // Calculate low stock from store helper
   const lowStockList = getLowStockMaterials();
 
-  const handleSaveMaterialUsage = (e: React.FormEvent) => {
+  const handleSaveRecipe = (e: React.FormEvent) => {
     e.preventDefault();
-    const qtyVal = parseFloat(muQtyPerPlate);
-    if (!muMenuItemId || !muMaterialName.trim() || isNaN(qtyVal) || qtyVal <= 0) {
-      toast.error("Please select a dish, material name and valid per-plate quantity.");
+    if (!recipeMenuItemId) {
+      toast.error("Please select a menu item first.");
       return;
     }
-    addMaterialUsage({
-      menu_item_id: muMenuItemId,
-      material_name: muMaterialName.trim(),
-      quantity_per_plate: qtyVal,
-      unit: muUnit
-    });
-    setMuMenuItemId("");
-    setMuMaterialName("");
-    setMuQtyPerPlate("");
-    setMuUnit("g");
-    toast.success("Material per-plate usage saved!");
+    if (!recipeText.trim()) {
+      toast.error("Please write the per-plate ingredients in the text area.");
+      return;
+    }
+    setMenuRecipe(recipeMenuItemId, recipeText.trim());
+    const dish = menuItems.find(m => m.id === recipeMenuItemId);
+    toast.success(`Knowledge base updated for "${dish?.name ?? "dish"}"`);
+    setRecipeMenuItemId("");
+    setRecipeText("");
   };
 
 
