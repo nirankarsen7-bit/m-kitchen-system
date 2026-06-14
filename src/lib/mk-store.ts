@@ -629,9 +629,21 @@ export const useStore = create<AppState>((set, get) => {
     // Verify & Validate Coupon
     validateCoupon: (code, totalAmount, currentBillId) => {
       const coupon = get().coupons.find(c => c.code.toUpperCase() === code.toUpperCase());
-      
+
       if (!coupon) {
         return { valid: false, discountAmount: 0, error: "Invalid coupon code." };
+      }
+
+      // Special Discount Coupon — admin-managed, flat, reusable across bills, per-bill once.
+      if (coupon.is_special_discount) {
+        if (coupon.is_enabled === false) {
+          return { valid: false, discountAmount: 0, error: "This coupon is currently turned OFF." };
+        }
+        if (currentBillId && (coupon.used_bill_ids || []).includes(currentBillId)) {
+          return { valid: false, discountAmount: 0, error: "This coupon has already been used for this bill." };
+        }
+        const flat = Math.min(coupon.discount, totalAmount);
+        return { valid: true, discountAmount: flat };
       }
 
       if (coupon.status !== CouponStatus.ACTIVE) {
@@ -647,12 +659,10 @@ export const useStore = create<AppState>((set, get) => {
         return { valid: false, discountAmount: 0, error: `Minimum purchase of ₹${coupon.min_purchase} required.` };
       }
 
-      // Check if trying to use on the coupon's generating bill (cannot use on source bill)
       if (currentBillId && coupon.linked_bill_id === currentBillId) {
         return { valid: false, discountAmount: 0, error: "Coupon cannot be applied to its generator bill." };
       }
 
-      // Calculate discount
       let discountAmount = 0;
       if (coupon.discount_type === "percentage") {
         discountAmount = (coupon.discount / 100) * totalAmount;
