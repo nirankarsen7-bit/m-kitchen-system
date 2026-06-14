@@ -493,26 +493,40 @@ export const DashboardStock: React.FC = () => {
 
       </div>
 
-      {/* F8: LOW STOCK ALERTS (auto-computed from per-plate usage vs purchases vs sales) */}
-      {lowStockList.length > 0 && (
-        <div className="border-t-2 border-warning/30 pt-6">
-          <div className="bg-red-50 border-2 border-warning rounded-2xl p-5 space-y-3 shadow-lg">
-            <h4 className="font-serif text-base font-bold text-warning flex items-center gap-2">
+      {/* Low Stock detail breakdown — Admin only (≥70% consumption rule) */}
+      {isAdmin && lowStockList.length > 0 && (
+        <div className="border-t-2 border-red-300 pt-6">
+          <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-5 space-y-3 shadow-lg">
+            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 animate-pulse" />
-              Low Stock Alerts ({lowStockList.length})
+              Low Stock Details ({lowStockList.length})
             </h4>
             <p className="text-[11px] text-mocha leading-relaxed">
-              These raw materials are running low based on per-plate usage vs current stock vs sales recorded.
+              Materials below have crossed 70% consumption based on Knowledge Base per-plate usage vs confirmed orders.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {lowStockList.map((ls, idx) => (
-                <div key={idx} className="bg-white p-3 rounded-xl border border-warning/30">
-                  <div className="font-bold text-espresso text-sm">{ls.material}</div>
+                <div key={idx} className="bg-white p-3 rounded-xl border border-red-300">
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-espresso text-sm">{ls.material}</div>
+                    <span className="text-[9px] font-black uppercase bg-red-600 text-white px-1.5 py-0.5 rounded">
+                      {Math.round(ls.percentConsumed * 100)}% used
+                    </span>
+                  </div>
                   <div className="text-[10px] text-mocha mt-1">
-                    Stock left: <span className="font-mono font-bold text-warning">{ls.currentStock.toFixed(2)} {ls.unit}</span>
+                    Purchased: <span className="font-mono font-bold">{ls.totalPurchased.toFixed(2)} {ls.unit}</span>
                   </div>
                   <div className="text-[10px] text-mocha">
-                    Est. usage so far: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
+                    Consumed: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
+                  </div>
+                  <div className="text-[10px] text-mocha">
+                    Stock left: <span className="font-mono font-bold text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full bg-red-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-600"
+                      style={{ width: `${Math.min(100, Math.round(ls.percentConsumed * 100))}%` }}
+                    />
                   </div>
                 </div>
               ))}
