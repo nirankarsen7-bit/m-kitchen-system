@@ -3,7 +3,7 @@ import { useStore } from "@/lib/mk-store";
 import { UserRole } from "@/lib/mk-types";
 import { MaharajiLogo, Button } from "@/components/mkitchen/PremiumUI";
 import { motion, AnimatePresence } from "motion/react";
-import { Hop as Home, Grid2x2 as Grid, ClipboardList, ChefHat, Gift, Package, FileText, ChartBar as BarChart3, QrCode, Settings, LogOut, Clock, User, Menu, ChevronLeft, ChevronRight, Crown } from "lucide-react";
+import { Hop as Home, Grid2x2 as Grid, ClipboardList, ChefHat, Gift, Package, FileText, ChartBar as BarChart3, QrCode, Settings, LogOut, Clock, User, Menu, ChevronLeft, ChevronRight, Crown, Truck } from "lucide-react";
 
 interface ShellProps {
   children: React.ReactNode;
