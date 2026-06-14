@@ -215,8 +215,8 @@ export const DashboardMenu: React.FC = () => {
                       <span className={`block w-2.5 h-2.5 rounded-full ${item.food_type === "non_veg" ? "bg-red-600" : "bg-green-600"}`} />
                     </span>
                     {!item.is_available && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-mocha/80 text-cream-ivory text-[8px] uppercase font-bold tracking-wider">
-                        Unavailable
+                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-red-600 text-white text-[8px] uppercase font-extrabold tracking-wider shadow-md">
+                        Out of Stock
                       </span>
                     )}
                   </div>
@@ -227,16 +227,35 @@ export const DashboardMenu: React.FC = () => {
                       <p className="text-[11px] text-mocha line-clamp-2 mt-0.5 leading-relaxed min-h-[32px]">{item.description}</p>
                     </div>
 
+                    {/* Point 2: Prominent OUT OF STOCK toggle — reception/admin can flip per item */}
+                    <button
+                      onClick={() => handleToggleAvailability(item)}
+                      className={`mt-2 w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border-2 transition-all cursor-pointer ${
+                        item.is_available
+                          ? "bg-green-50 border-green-300 text-green-800 hover:bg-green-100"
+                          : "bg-red-50 border-red-400 text-red-700 hover:bg-red-100"
+                      }`}
+                      title={item.is_available ? "Click to mark Out of Stock" : "Click to mark Available"}
+                    >
+                      <span className="text-[10px] uppercase font-extrabold tracking-wider">
+                        {item.is_available ? "In Stock" : "Out of Stock"}
+                      </span>
+                      <span
+                        className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors ${
+                          item.is_available ? "bg-green-500" : "bg-red-500"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            item.is_available ? "translate-x-0" : "translate-x-4"
+                          }`}
+                        />
+                      </span>
+                    </button>
+
                     <div className="flex items-center justify-between pt-2 border-t border-gold-rich/5 mt-2">
                       <span className="font-mono font-bold text-maroon-royal text-sm">₹{item.price.toFixed(2)}</span>
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleToggleAvailability(item)}
-                          className={`p-1 px-1.5 rounded cursor-pointer ${item.is_available ? "bg-success/10 text-success hover:bg-success/20" : "bg-mocha/10 text-mocha hover:bg-mocha/20"}`}
-                          title={item.is_available ? "Mark unavailable" : "Mark available"}
-                        >
-                          {item.is_available ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                        </button>
                         <button
                           onClick={() => handleOpenEditModal(item)}
                           className="p-1 px-1.5 rounded bg-gold-rich/10 text-gold-rich hover:bg-gold-rich/20 cursor-pointer"
@@ -253,6 +272,7 @@ export const DashboardMenu: React.FC = () => {
                         </button>
                       </div>
                     </div>
+
                   </div>
                 </Card>
               );
