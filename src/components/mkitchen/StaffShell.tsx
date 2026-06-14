@@ -45,6 +45,7 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
     { name: "Menu Management", path: "menu", icon: <ChefHat className="w-5 h-5" />, adminOnly: false },
     { name: "Maharaji Special Discount", path: "offers", icon: <Gift className="w-5 h-5" />, adminOnly: true },
     { name: "Stock / Materials", path: "stock", icon: <Package className="w-5 h-5" />, adminOnly: false },
+    { name: "Suppliers", path: "suppliers", icon: <Truck className="w-5 h-5" />, adminOnly: false },
     { name: "Bills & History", path: "archive", icon: <FileText className="w-5 h-5" />, adminOnly: false },
     { name: "Reports & Stats", path: "stats", icon: <BarChart3 className="w-5 h-5" />, adminOnly: false },
     { name: "Table QR Codes", path: "qr", icon: <QrCode className="w-5 h-5" />, adminOnly: false },
