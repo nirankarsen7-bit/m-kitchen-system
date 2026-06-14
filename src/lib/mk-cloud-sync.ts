@@ -14,6 +14,7 @@ const SHARED_KEYS = [
   "coupons",
   "stockPurchases",
   "materialUsages",
+  "menuRecipes",
   "supplierPayments",
   "couponSettings",
   "system",
