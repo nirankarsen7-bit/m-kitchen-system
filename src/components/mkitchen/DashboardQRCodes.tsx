@@ -13,27 +13,45 @@ export const DashboardQRCodes: React.FC = () => {
   // States
   const [selectedTableNum, setSelectedTableNum] = useState<number>(1);
   const [qrBase64, setQrBase64] = useState<string>("");
+  // Point 1: Public Menu Base URL — saved so QR codes point to the published site,
+  // not the preview URL (which requires Lovable login and shows the Lovable logo).
+  const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("mk_public_menu_base_url") || `${window.location.protocol}//${window.location.host}`;
+  });
+
+  const savePublicBaseUrl = (url: string) => {
+    const cleaned = url.trim().replace(/\/+$/, "");
+    setPublicBaseUrl(cleaned);
+    localStorage.setItem("mk_public_menu_base_url", cleaned);
+    toast.success("Public menu URL saved. New QR codes will use it.");
+  };
 
   // Chef Logo URL provided by user
   const logoUrl = "https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png";
 
+  const buildMenuUrl = (tableN: number) => {
+    const base = (publicBaseUrl || `${window.location.protocol}//${window.location.host}`).replace(/\/+$/, "");
+    return `${base}/menu?table=${tableN}`;
+  };
+
   useEffect(() => {
-    // Re-generate QR link when table number pivots
-    const destinationUrl = `${window.location.protocol}//${window.location.host}/menu?table=${selectedTableNum}`;
+    const destinationUrl = buildMenuUrl(selectedTableNum);
     QRCode.toDataURL(
       destinationUrl,
-      { 
-        width: 600, 
-        margin: 1, 
-        color: { dark: "#1C1917", light: "#FFFFFF" } 
-      }, 
+      {
+        width: 600,
+        margin: 1,
+        color: { dark: "#1C1917", light: "#FFFFFF" }
+      },
       (err, url) => {
         if (!err) {
           setQrBase64(url);
         }
       }
     );
-  }, [selectedTableNum]);
+  }, [selectedTableNum, publicBaseUrl]);
+
 
   // Method to render premium canvas and trigger high-resolution JPG download
   const handleDownloadJPG = () => {
