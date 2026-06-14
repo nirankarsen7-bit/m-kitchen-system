@@ -21,6 +21,38 @@ import {
   CouponSettings
 } from "@/lib/mk-types";
 
+// Knowledge Base parser: turn a long free-form recipe text into per-plate ingredient rows.
+// Accepts lines or comma/semicolon separated entries like:
+//   "Paneer 120g", "Basmati Rice - 80 g", "Mustard Oil: 15 ml", "Onion 1 unit"
+type ParsedIngredient = { material_name: string; quantity_per_plate: number; unit: string };
+const normalizeUnit = (raw: string | undefined): string => {
+  if (!raw) return "g";
+  const u = raw.toLowerCase().replace(/\.$/, "");
+  if (["g", "gram", "grams", "gm", "gms"].includes(u)) return "g";
+  if (["kg", "kgs", "kilogram", "kilograms"].includes(u)) return "kg";
+  if (["ml", "millilitre", "milliliter", "millilitres", "milliliters"].includes(u)) return "ml";
+  if (["l", "lt", "ltr", "litre", "liter", "litres", "liters"].includes(u)) return "litres";
+  if (["pc", "pcs", "piece", "pieces", "unit", "units", "nos", "no"].includes(u)) return "units";
+  return u;
+};
+export function parseRecipeText(text: string): ParsedIngredient[] {
+  if (!text) return [];
+  const segments = text.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+  const out: ParsedIngredient[] = [];
+  for (const seg of segments) {
+    const cleaned = seg.replace(/^[-•*\d.)\s]+/, "").trim();
+    // name <sep> qty <unit?>
+    const m = cleaned.match(/^(.+?)[\s:=\-–—]+(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\.?$/);
+    if (!m) continue;
+    const name = m[1].trim().replace(/[-:–—]+$/, "").trim();
+    const qty = parseFloat(m[2]);
+    const unit = normalizeUnit(m[3]);
+    if (!name || isNaN(qty) || qty <= 0) continue;
+    out.push({ material_name: name, quantity_per_plate: qty, unit });
+  }
+  return out;
+}
+
 // Premium Curated Unsplash images dictionary for Indian foods
 const PREMIUM_FOOD_IMAGES: Record<string, string> = {
   paneer: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&q=80",
