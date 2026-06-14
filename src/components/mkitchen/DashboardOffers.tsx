@@ -283,12 +283,12 @@ export const DashboardOffers: React.FC = () => {
             </Card>
           )}
 
-          {/* Manual coupon management - ADMIN ONLY */}
+          {/* Special Discount Coupons - ADMIN ONLY */}
           {isAdmin && (
             <div className="space-y-4">
               <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-gold-rich/10">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2 flex items-center gap-1">
-                  <Percent className="w-4 h-4 text-gold-rich" /> Promotional Coupons
+                  <Crown className="w-4 h-4 text-gold-rich" /> Special Discount Coupons
                 </h4>
 
                 <Button
@@ -302,35 +302,106 @@ export const DashboardOffers: React.FC = () => {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[200px] overflow-y-auto pr-1">
-                {coupons.map(cop => (
-                  <Card key={cop.id} className="p-3 bg-white border border-gold-rich/15 flex flex-col justify-between overflow-hidden relative min-h-[90px]">
-                    <div className="absolute left-0 inset-y-0 w-1 bg-gold-rich" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto pr-1">
+                {coupons.filter(c => c.is_special_discount).length === 0 && (
+                  <div className="col-span-full text-center text-[11px] text-mocha italic py-6 bg-white rounded-xl border border-dashed border-gold-rich/20">
+                    No Special Discount Coupons yet. Create one to share with customers.
+                  </div>
+                )}
+                {coupons.filter(c => c.is_special_discount).map(cop => {
+                  const enabled = cop.is_enabled !== false;
+                  return (
+                    <div key={cop.id} className="relative group">
+                      {/* Premium gift coupon card with Maharaji branding */}
+                      <div className={`relative overflow-hidden rounded-2xl border-2 border-gold-rich/40 shadow-xl bg-gradient-to-br from-maroon-deep via-maroon-royal to-charcoal-deep text-cream-ivory transition-all ${enabled ? "" : "opacity-50 grayscale"}`}>
+                        {/* shimmer */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        {/* notches for ticket look */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-[#FAF7F2] rounded-r-full" />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-[#FAF7F2] rounded-l-full" />
 
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <span className="font-mono text-xs font-bold text-espresso bg-cream-warm/40 px-2 py-0.5 rounded border border-gold-rich/20">
-                          {cop.code}
-                        </span>
-                        <button
-                          onClick={() => deleteCoupon(cop.id)}
-                          className="p-1 rounded text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="p-4 pl-5 pr-5 relative z-10">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <Crown className="w-3.5 h-3.5 text-gold-shimmer" />
+                              <span className="font-serif font-black text-[10px] tracking-[0.18em] uppercase text-gold-shimmer">Maharaji Kitchen</span>
+                            </div>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${enabled ? "bg-success/30 text-success-foreground border border-success/50" : "bg-mocha/40 text-cream-warm"}`}>
+                              {enabled ? "ON" : "OFF"}
+                            </span>
+                          </div>
+
+                          <div className="text-center py-2 border-y border-dashed border-gold-rich/30 my-2">
+                            <div className="text-[9px] uppercase tracking-widest text-gold-light/80">Flat Discount</div>
+                            <div className="font-serif text-3xl font-black text-gold-shimmer drop-shadow-[0_0_8px_rgba(245,220,138,0.4)] leading-tight">
+                              ₹{cop.discount}
+                            </div>
+                            <div className="text-[9px] uppercase tracking-widest text-cream-warm/80">OFF on bill</div>
+                          </div>
+
+                          <div className="text-center mb-2">
+                            <div className="text-[8px] uppercase tracking-widest text-cream-warm/70 mb-0.5">Coupon Code</div>
+                            <div className="font-mono font-black text-base bg-gold-gradient text-charcoal-deep px-3 py-1 rounded-lg inline-block tracking-widest border border-gold-rich shadow-inner">
+                              {cop.code}
+                            </div>
+                          </div>
+
+                          <div className="text-[8px] text-cream-warm/70 text-center mb-2 italic">
+                            Used on {(cop.used_bill_ids || []).length} bill(s) • once per bill
+                          </div>
+
+                          <div className="flex gap-1.5 pt-1.5 border-t border-gold-rich/20">
+                            <button
+                              onClick={() => handleShareCoupon(cop.code, cop.discount)}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gold-gradient text-charcoal-deep text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all"
+                            >
+                              <Share2 className="w-3 h-3" /> Share
+                            </button>
+                            <button
+                              onClick={() => toggleCoupon(cop.id)}
+                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${enabled ? "bg-white/10 border-cream-warm/30 text-cream-ivory hover:bg-white/20" : "bg-success/30 border-success/50 text-success-foreground"}`}
+                              title="Toggle ON/OFF"
+                            >
+                              <Power className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => { if (confirm(`Delete coupon ${cop.code}?`)) deleteCoupon(cop.id); }}
+                              className="flex items-center justify-center px-2.5 py-1.5 rounded-lg bg-danger/30 border border-danger/50 text-cream-ivory hover:bg-danger/50 transition-all"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-
-                      <p className="text-[10px] text-mocha mt-2">
-                        Get {cop.discount_type === "percentage" ? `${cop.discount}%` : `₹${cop.discount}`} off on purchases above <span className="font-bold text-espresso">₹{cop.min_purchase}</span>.
-                      </p>
                     </div>
-
-                    <span className="block text-[8px] text-gold-rich font-bold uppercase tracking-wider text-right border-t border-dashed border-gold-rich/10 pt-1.5 mt-2">
-                      <Ticket className="w-3 h-3 inline" /> {cop.status} coupon
-                    </span>
-                  </Card>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* Auto-generated / legacy coupons (admin-only, internal) */}
+              {coupons.filter(c => !c.is_special_discount).length > 0 && (
+                <details className="bg-white rounded-2xl border border-gold-rich/10 p-3">
+                  <summary className="text-[10px] font-bold uppercase tracking-wider text-mocha cursor-pointer">
+                    Auto-generated coupons ({coupons.filter(c => !c.is_special_discount).length})
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                    {coupons.filter(c => !c.is_special_discount).map(cop => (
+                      <Card key={cop.id} className="p-2 bg-cream-warm/30 border border-gold-rich/15 flex flex-col gap-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono text-[10px] font-bold text-espresso">{cop.code}</span>
+                          <button onClick={() => deleteCoupon(cop.id)} className="p-0.5 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-mocha">
+                          {cop.discount_type === "percentage" ? `${cop.discount}%` : `₹${cop.discount}`} off &gt; ₹{cop.min_purchase} · {cop.status}
+                        </p>
+                      </Card>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
