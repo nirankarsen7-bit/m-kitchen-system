@@ -3,7 +3,7 @@ import { useStore } from "@/lib/mk-store";
 import { UserRole } from "@/lib/mk-types";
 import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Percent, Ticket, Settings } from "lucide-react";
+import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Percent, Ticket, Settings, Share2, Crown, Power } from "lucide-react";
 
 export const DashboardOffers: React.FC = () => {
   // Zustand States
