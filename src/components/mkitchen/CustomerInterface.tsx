@@ -471,10 +471,11 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
                         <span className={`block w-2.5 h-2.5 rounded-full ${item.food_type === "non_veg" ? "bg-red-600" : "bg-green-600"}`} />
                       </span>
                       {!item.is_available && (
-                        <div className="absolute inset-0 bg-charcoal-deep/60 backdrop-blur-[1px] flex items-center justify-center">
-                          <span className="px-2 py-1 rounded bg-maroon-royal text-cream-ivory text-[9px] uppercase font-bold tracking-wider">Sold Out</span>
+                        <div className="absolute inset-0 bg-charcoal-deep/65 backdrop-blur-[1px] flex items-center justify-center">
+                          <span className="px-3 py-1.5 rounded-md bg-red-600 text-white text-[10px] uppercase font-extrabold tracking-wider shadow-lg border border-red-300">Out of Stock</span>
                         </div>
                       )}
+
                     </div>
 
 
