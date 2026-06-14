@@ -2,6 +2,7 @@ import { createFileRoute, ClientOnly } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Toaster } from "sonner";
 import { useStore } from "@/lib/mk-store";
+import { useMaharajiCloudSync } from "@/lib/mk-cloud-sync";
 import { CustomerInterface } from "@/components/mkitchen/CustomerInterface";
 import { LoginScreen } from "@/components/mkitchen/LoginScreen";
 import { WelcomeScreen } from "@/components/mkitchen/WelcomeScreen";
@@ -164,6 +165,7 @@ function AppShell() {
 
   return (
     <>
+      <StaffCloudSync />
       <StaffShell activeTab={activeTab} setActiveTab={setActiveTab}>
         {renderTabContent()}
       </StaffShell>
@@ -171,4 +173,9 @@ function AppShell() {
       {toasterEl}
     </>
   );
+}
+
+function StaffCloudSync() {
+  useMaharajiCloudSync();
+  return null;
 }

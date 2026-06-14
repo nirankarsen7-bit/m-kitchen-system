@@ -219,7 +219,7 @@ interface AppState {
   validateCoupon: (code: string, totalAmount: number, currentBillId?: string) => { valid: boolean; discountAmount: number; error?: string };
   editBillItems: (billId: string, itemChanges: { menu_item_id: string; quantity: number; price: number }[], adminCode: string) => boolean;
   editActiveOrderItems: (orderId: string, itemChanges: { menu_item_id: string; quantity: number; price: number }[], adminCode: string) => boolean;
-  checkoutBill: (table_number: number, coupon_code?: string) => void;
+  checkoutBill: (table_number: number, coupon_code?: string) => boolean;
 
   // Promotional rules
   todaysOffers: TodaysOffer[];
@@ -366,28 +366,28 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     unlockTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
-      get().logAudit("TABLE_UNLOCKED", `Caretaker unlocked Table ${id.replace("table_", "")}.`);
+      get().logAudit("TABLE_OPENED", `Reception opened Table ${id.replace("table_", "")} for QR menu access.`);
     },
 
     lockTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
       get().logAudit("TABLE_LOCKED", `Caretaker locked Table ${id.replace("table_", "")}.`);
     },
 
     openTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.ACTIVE } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
-      get().logAudit("TABLE_OPENED", `Customer active at Table ${id.replace("table_", "")}.`);
+      get().logAudit("TABLE_OPENED", `Reception opened Table ${id.replace("table_", "")} for QR menu access.`);
     },
 
     closeTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
       get().logAudit("TABLE_CLOSED", `Settled down. Table ${id.replace("table_", "")} is now Locked default.`);
@@ -708,7 +708,7 @@ export const useStore = create<AppState>((set, get) => {
     checkoutBill: (table_number, coupon_code) => {
       // Find active order for this table
       const activeOrder = get().orders.find(o => o.table_number === table_number && o.status !== "completed" && o.status !== "cancelled");
-      if (!activeOrder) return;
+      if (!activeOrder) return false;
 
       // Find all confirmed items associated with this active order
       const confirmedItems = get().orderItems.filter(oi => oi.order_id === activeOrder.id && oi.status === OrderItemStatus.CONFIRMED);
@@ -759,10 +759,16 @@ export const useStore = create<AppState>((set, get) => {
       const updatedBills = [...get().bills, newClosedBill];
       
       // Update completed orders
-      const updatedOrders = get().orders.map(o => o.id === activeOrder.id ? { ...o, status: "completed" as const } : o);
+      const updatedOrders = get().orders.map(o => o.id === activeOrder.id ? { ...o, status: "completed" as const, updated_at: new Date().toISOString() } : o);
+
+      const updatedOrderItems = get().orderItems.map(item =>
+        item.order_id === activeOrder.id && item.status === OrderItemStatus.PENDING_APPROVAL
+          ? { ...item, status: OrderItemStatus.REJECTED }
+          : item
+      );
 
       // Lock table on close
-      const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED } : t);
+      const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
 
       // Auto generate coupon if bill >= configured min purchase (F6)
       const couponCfg = get().couponSettings;
@@ -788,16 +794,19 @@ export const useStore = create<AppState>((set, get) => {
       set({ 
         bills: updatedBills, 
         orders: updatedOrders,
+        orderItems: updatedOrderItems,
         tables: updatedTables,
         coupons: updatedCouponsList 
       });
 
       saveToStorage("bills", updatedBills);
       saveToStorage("orders", updatedOrders);
+      saveToStorage("order_items", updatedOrderItems);
       saveToStorage("tables", updatedTables);
       saveToStorage("coupons", updatedCouponsList);
 
       get().logAudit("BILL_CLOSED", `Settled payment of ₹${finalTotal.toFixed(2)} on Table ${table_number}.`);
+      return true;
     },
 
     // Promotions

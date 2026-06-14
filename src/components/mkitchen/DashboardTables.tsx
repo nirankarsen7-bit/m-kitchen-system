@@ -18,6 +18,13 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 
+const buildMenuUrl = (tableNumber: number) => {
+  if (typeof window === "undefined") return `/menu?table=${tableNumber}`;
+  const savedBase = localStorage.getItem("mk_public_menu_base_url");
+  const base = (savedBase || `${window.location.protocol}//${window.location.host}`).replace(/\/+$/, "");
+  return `${base}/menu?table=${tableNumber}`;
+};
+
 export const DashboardTables: React.FC = () => {
   // Zustand Store
   const tables = useStore(state => state.tables);
@@ -96,9 +103,8 @@ export const DashboardTables: React.FC = () => {
   };
 
   const handleOpenQRModal = (num: number) => {
-    // Generate QR code for customer web scan
-    const portUrl = `https://ais-dev-pvgaexynmavehnu76z6o77-865640942941.asia-east1.run.app/menu?table=${num}`;
-    QRCode.toDataURL(portUrl, { width: 300, margin: 2 }, (err, url) => {
+    const menuUrl = buildMenuUrl(num);
+    QRCode.toDataURL(menuUrl, { width: 300, margin: 2 }, (err, url) => {
       if (!err) {
         setQrModalUrl(url);
         setQrModalNum(num);
@@ -213,8 +219,8 @@ export const DashboardTables: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-[10px] text-mocha italic leading-snug">
-                      {table.status === TableStatus.LOCKED ? "Sealed. No customer can scan or browse menus." :
-                       table.status === TableStatus.OPEN ? "Available. Customer can access menu but hasn't ordered." :
+                      {table.status === TableStatus.LOCKED ? "Locked. Customer QR menu is blocked." :
+                       table.status === TableStatus.OPEN ? "Open. Customer can scan QR and view menu." :
                        "Post-checkout state. Close table to wipe cart and reset."}
                     </p>
                   )}
@@ -239,7 +245,7 @@ export const DashboardTables: React.FC = () => {
                         onClick={() => unlockTable(table.id)}
                       >
                         <Unlock className="w-3.5 h-3.5" />
-                        <span>Unlock</span>
+                        <span>Open</span>
                       </Button>
                     )}
 
@@ -253,14 +259,6 @@ export const DashboardTables: React.FC = () => {
                         >
                           <Lock className="w-3 h-3" />
                           <span>Lock</span>
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="py-1 px-3 text-[10px] rounded-lg"
-                          onClick={() => openTable(table.id)}
-                        >
-                          <span>Open</span>
                         </Button>
                       </div>
                     )}
@@ -315,7 +313,7 @@ export const DashboardTables: React.FC = () => {
               <div className="text-left py-2 px-3 bg-cream-warm/30 rounded-xl border border-gold-rich/10 text-[10px] text-mocha font-mono leading-relaxed mb-4">
                 <div className="flex justify-between">
                   <span>URL:</span>
-                  <span className="truncate max-w-[200px] text-maroon-royal font-bold">/menu?table={qrModalNum}</span>
+                  <span className="truncate max-w-[200px] text-maroon-royal font-bold">{qrModalNum ? buildMenuUrl(qrModalNum) : ""}</span>
                 </div>
                 <div className="flex justify-between mt-0.5">
                   <span>Dine status:</span>
