@@ -590,12 +590,40 @@ export const DashboardQRCodes: React.FC = () => {
               <div className="font-bold uppercase text-maroon-royal mb-1 flex items-center gap-1">
                 <Info className="w-3.5 h-3.5" /> LUXURY SINK GRAPHICS
               </div>
-              <div>• Destination URL: <span className="text-espresso font-semibold underline">/menu?table={selectedTableNum}</span></div>
+              <div className="break-all">• Destination URL: <span className="text-espresso font-semibold underline">{buildMenuUrl(selectedTableNum)}</span></div>
               <div>• Border: Double royal gold bezel with corner dots</div>
               <div>• Embedded QR Stamps: Medallion icon centered</div>
             </div>
 
+            {/* Point 1: Public Menu Base URL — solves the "Lovable login wall" QR issue */}
+            <div className="p-3 bg-gradient-to-br from-maroon-deep/5 to-gold-rich/5 rounded-xl border-2 border-gold-rich/30 space-y-2">
+              <label className="block text-[10px] text-maroon-royal uppercase font-extrabold tracking-wider">
+                Public Menu URL (for QR scans)
+              </label>
+              <p className="text-[10px] text-mocha leading-relaxed">
+                Yahan apna <span className="font-bold text-maroon-royal">published / live website URL</span> daalein (jaise <span className="font-mono">https://maharaji-kitchen.vercel.app</span>). QR scan karne par customer ke phone ke default browser me directly menu khulega — bina kisi login ke.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={publicBaseUrl}
+                  onChange={(e) => setPublicBaseUrl(e.target.value)}
+                  placeholder="https://your-published-site.com"
+                  className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-gold-rich/30 focus:outline-none focus:border-gold-rich text-espresso bg-white"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="text-[10px] uppercase font-bold px-3"
+                  onClick={() => savePublicBaseUrl(publicBaseUrl)}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
+
               <Button
                 variant="gold"
                 className="w-full py-3.5 text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-1.5 shadow-md"
