@@ -1,4 +1,4 @@
-import { createFileRoute, ClientOnly } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 import { CustomerInterface } from "@/components/mkitchen/CustomerInterface";
 
@@ -17,30 +17,8 @@ export const Route = createFileRoute("/menu")({
   component: MenuRoute,
 });
 
-function MenuFallback() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#FAF7F2", color: "#7B1E2B", fontFamily: "Playfair Display, serif" }}
-    >
-      <div className="text-center">
-        <div className="text-3xl font-bold">Maharaji Kitchen</div>
-        <div className="mt-2 text-sm opacity-70">Opening royal menu…</div>
-      </div>
-    </div>
-  );
-}
-
 function MenuRoute() {
-  return (
-    <ClientOnly fallback={<MenuFallback />}>
-      <MenuClient />
-    </ClientOnly>
-  );
-}
-
-function MenuClient() {
-  const params = new URLSearchParams(window.location.search);
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const raw = params.get("table");
   const tableNum = raw ? parseInt(raw, 10) : 1;
   return (
