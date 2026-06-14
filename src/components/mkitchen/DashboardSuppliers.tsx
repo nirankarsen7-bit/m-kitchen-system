@@ -193,9 +193,9 @@ export const DashboardSuppliers: React.FC = () => {
 
     groupedBySupplier.forEach(r => {
       if (y > 270) { doc.addPage(); y = 18; }
-      doc.setFontSize(11); doc.setFont(undefined, "bold");
+      doc.setFontSize(11); (doc as any).setFont(undefined, "bold");
       doc.text(`${r.supplier}  —  Purchased ₹${r.totalPurchased.toFixed(2)} | Paid ₹${r.totalPaid.toFixed(2)} | Balance ₹${r.balance.toFixed(2)}`, 14, y);
-      y += 6; doc.setFont(undefined, "normal"); doc.setFontSize(9);
+      y += 6; (doc as any).setFont(undefined, "normal"); doc.setFontSize(9);
       r.purchases.forEach(p => {
         if (y > 280) { doc.addPage(); y = 18; }
         doc.text(`P · ${fmtDate(p.date)} · ${p.item_name} · ${p.quantity}${p.unit} @ ₹${p.unit_price} = ₹${p.total.toFixed(2)}`, 18, y);
