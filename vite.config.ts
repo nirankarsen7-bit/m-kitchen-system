@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Empty plugins array so Cloudflare's wrangler auto-config detection passes.
+  // The real plugins are injected by @lovable.dev/vite-tanstack-config.
+  plugins: [],
 });
