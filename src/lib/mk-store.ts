@@ -241,7 +241,7 @@ interface AppState {
   addMaterialUsage: (usage: Omit<MaterialUsage, "id">) => void;
   updateMaterialUsage: (id: string, updates: Partial<MaterialUsage>) => void;
   deleteMaterialUsage: (id: string) => void;
-  getLowStockMaterials: () => { material: string; currentStock: number; estimatedUsage: number; unit: string }[];
+  getLowStockMaterials: () => { material: string; currentStock: number; estimatedUsage: number; totalPurchased: number; percentConsumed: number; unit: string }[];
 
   // Supplier payments (F16)
   supplierPayments: SupplierPayment[];
@@ -900,52 +900,49 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     getLowStockMaterials: () => {
-      // Calculate current stock levels
-      const stockLevels: Record<string, { current: number; unit: string }> = {};
+      // Sum total purchased per material name (case-insensitive match against stock item_name)
+      const purchasedByName: Record<string, { total: number; unit: string; display: string }> = {};
       get().stockPurchases.forEach(sp => {
-        if (!stockLevels[sp.item_name]) {
-          stockLevels[sp.item_name] = { current: 0, unit: sp.unit };
+        const key = sp.item_name.trim().toLowerCase();
+        if (!purchasedByName[key]) {
+          purchasedByName[key] = { total: 0, unit: sp.unit, display: sp.item_name };
         }
-        stockLevels[sp.item_name].current += sp.quantity;
+        purchasedByName[key].total += sp.quantity;
       });
 
-      // Calculate estimated usage based on menu items sold
-      const usageEstimates: Record<string, { estimated: number; unit: string }> = {};
-      const billItems: Record<string, number> = {}; // menu_item_id -> total qty sold
-
-      // Sum up all sold items from completed orders
+      // Sum confirmed sold quantities per menu item
+      const soldByMenuItem: Record<string, number> = {};
       get().orderItems.forEach(oi => {
         if (oi.status === OrderItemStatus.CONFIRMED) {
-          if (!billItems[oi.menu_item_id]) billItems[oi.menu_item_id] = 0;
-          billItems[oi.menu_item_id] += oi.quantity;
+          soldByMenuItem[oi.menu_item_id] = (soldByMenuItem[oi.menu_item_id] || 0) + oi.quantity;
         }
       });
 
-      // Calculate material usage based on per-plate estimates
+      // Estimated consumption per material (from Knowledge Base mappings)
+      const consumedByName: Record<string, { consumed: number; unit: string }> = {};
       get().materialUsages.forEach(mu => {
-        const qtySold = billItems[mu.menu_item_id] || 0;
-        const usedQty = qtySold * mu.quantity_per_plate;
-        if (!usageEstimates[mu.material_name]) {
-          usageEstimates[mu.material_name] = { estimated: 0, unit: mu.unit };
-        }
-        usageEstimates[mu.material_name].estimated += usedQty;
+        const sold = soldByMenuItem[mu.menu_item_id] || 0;
+        if (sold <= 0) return;
+        const key = mu.material_name.trim().toLowerCase();
+        if (!consumedByName[key]) consumedByName[key] = { consumed: 0, unit: mu.unit };
+        consumedByName[key].consumed += sold * mu.quantity_per_plate;
       });
 
-      // Compare stock vs usage and find low stock items
-      const lowStock: { material: string; currentStock: number; estimatedUsage: number; unit: string }[] = [];
-      Object.keys(stockLevels).forEach(material => {
-        const currentStock = stockLevels[material].current;
-        const stockUnit = stockLevels[material].unit;
-        const estimated = usageEstimates[material]?.estimated || 0;
-        const usageUnit = usageEstimates[material]?.unit || stockUnit;
-
-        // Low if stock is less than 20% of estimated usage or less than 5 units
-        if (currentStock > 0 && (currentStock < estimated * 0.2 || currentStock < 5)) {
+      // Low-stock when consumption >= 70% of purchased
+      const lowStock: { material: string; currentStock: number; estimatedUsage: number; totalPurchased: number; percentConsumed: number; unit: string }[] = [];
+      Object.keys(purchasedByName).forEach(key => {
+        const purchased = purchasedByName[key].total;
+        const consumed = consumedByName[key]?.consumed || 0;
+        if (purchased <= 0) return;
+        const percent = consumed / purchased;
+        if (percent >= 0.7) {
           lowStock.push({
-            material,
-            currentStock,
-            estimatedUsage: estimated,
-            unit: stockUnit
+            material: purchasedByName[key].display,
+            currentStock: Math.max(0, purchased - consumed),
+            estimatedUsage: consumed,
+            totalPurchased: purchased,
+            percentConsumed: percent,
+            unit: purchasedByName[key].unit
           });
         }
       });
