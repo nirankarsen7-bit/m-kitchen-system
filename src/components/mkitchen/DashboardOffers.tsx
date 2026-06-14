@@ -17,159 +17,173 @@ interface VoucherProps {
   usedCount: number;
 }
 const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, discount, usedCount }, ref) => {
-  // Premium gift-card design: deep maroon left panel with large outline logo + 3D brand,
-  // ivory body with gold guilloche, perforated tear, embossed value seal.
   return (
     <div
       ref={ref}
-      className="relative w-full aspect-[1.85/1] rounded-2xl overflow-hidden shadow-[0_24px_60px_-20px_rgba(91,15,26,0.55)] border border-[#D4AF37]/40"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", background: "#FAF6EC" }}
+      className="relative w-full aspect-[1.85/1] rounded-2xl overflow-hidden"
+      style={{
+        fontFamily: "'Inter', system-ui, sans-serif",
+        background: "#FAF6EC",
+        border: "3px solid #5C0F1A",
+        boxShadow:
+          "0 0 0 1px #C9A227 inset, 0 0 0 6px #FAF6EC inset, 0 0 0 7px #8B6508 inset, 0 28px 60px -22px rgba(60,8,16,0.75)",
+      }}
     >
       {/* Ivory body guilloche pattern */}
       <div
-        className="absolute inset-0 opacity-[0.10] pointer-events-none"
+        className="absolute inset-0 opacity-[0.14] pointer-events-none"
         style={{
           backgroundImage:
-            "repeating-radial-gradient(circle at 0 0, transparent 0, rgba(139,101,8,0.6) 1px, transparent 2px, transparent 14px), repeating-linear-gradient(45deg, transparent 0 10px, rgba(139,101,8,0.25) 10px 11px)",
+            "repeating-radial-gradient(circle at 0 0, transparent 0, rgba(139,101,8,0.55) 1px, transparent 2px, transparent 14px), repeating-linear-gradient(45deg, transparent 0 10px, rgba(139,101,8,0.25) 10px 11px)",
         }}
       />
-      {/* Gold inner frame */}
-      <div className="absolute inset-[10px] rounded-xl border border-[#C9A227]/60 pointer-events-none" />
-      <div className="absolute inset-[14px] rounded-lg border border-[#C9A227]/30 pointer-events-none" />
 
-      {/* ===== LEFT MAROON BRAND PANEL ===== */}
+      {/* ===== LEFT DEEP MAROON BRAND PANEL ===== */}
       <div className="absolute left-0 top-0 h-full w-[40%] overflow-hidden">
-        {/* maroon gradient */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(135deg, #7B1E2B 0%, #5C0F1A 55%, #3D0810 100%)",
+              "linear-gradient(135deg, #4A0710 0%, #2E0408 55%, #150103 100%)",
           }}
         />
-        {/* radial glow */}
         <div
-          className="absolute inset-0 opacity-60"
+          className="absolute inset-0 opacity-50"
           style={{
             background:
-              "radial-gradient(ellipse at 30% 30%, rgba(245,220,138,0.18), transparent 60%)",
+              "radial-gradient(ellipse at 30% 25%, rgba(245,220,138,0.22), transparent 65%)",
           }}
         />
-        {/* subtle gold fleck pattern */}
+        {/* light watermark logo (background) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <img
+            src={logoOutlineAsset.url}
+            alt=""
+            aria-hidden
+            className="w-[125%] max-w-none object-contain"
+            style={{
+              filter: "brightness(0) invert(1)",
+              opacity: 0.08,
+              transform: "scale(1.15)",
+            }}
+          />
+        </div>
+        {/* damask diamond fleck */}
         <div
-          className="absolute inset-0 opacity-[0.08]"
+          className="absolute inset-0 opacity-[0.10]"
           style={{
             backgroundImage:
-              "repeating-linear-gradient(45deg, transparent 0 8px, #F5DC8A 8px 9px)",
+              "repeating-linear-gradient(45deg, transparent 0 10px, #F5DC8A 10px 11px), repeating-linear-gradient(-45deg, transparent 0 10px, #F5DC8A 10px 11px)",
           }}
         />
-        {/* gold vertical divider with double pinstripe */}
-        <div className="absolute right-0 top-0 h-full w-[6px] bg-gradient-to-b from-[#F5DC8A] via-[#C9A227] to-[#8B6508] shadow-[0_0_12px_rgba(212,162,39,0.6)]" />
-        <div className="absolute right-[10px] top-[8%] bottom-[8%] w-px bg-[#F5DC8A]/40" />
+        {/* gold vertical divider */}
+        <div
+          className="absolute right-0 top-0 h-full w-[6px]"
+          style={{
+            background: "linear-gradient(to bottom, #F5DC8A, #C9A227, #8B6508)",
+            boxShadow: "0 0 14px rgba(212,162,39,0.7)",
+          }}
+        />
+        <div className="absolute right-[10px] top-[8%] bottom-[8%] w-px" style={{ background: "rgba(245,220,138,0.45)" }} />
 
-        {/* Large outline logo centered */}
+        {/* Foreground logo + brand */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
-          <div className="relative">
-            <img
-              src={logoOutlineAsset.url}
-              alt="Maharaji Kitchen"
-              className="w-[58%] max-w-[150px] mx-auto object-contain"
-              style={{
-                filter:
-                  "brightness(0) invert(1) drop-shadow(0 0 14px rgba(245,220,138,0.55)) drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
-              }}
-            />
-          </div>
-
-          {/* 3D embossed brand */}
+          <img
+            src={logoOutlineAsset.url}
+            alt="Maharaji Kitchen"
+            className="w-[68%] max-w-[170px] mx-auto object-contain"
+            style={{
+              filter:
+                "brightness(0) invert(1) drop-shadow(0 0 18px rgba(245,220,138,0.65)) drop-shadow(0 3px 5px rgba(0,0,0,0.6))",
+            }}
+          />
           <div className="mt-3 leading-none">
             <div
-              className="font-serif font-black tracking-[0.04em]"
+              className="font-serif font-black tracking-[0.05em]"
               style={{
-                fontSize: "clamp(14px, 2.6vw, 26px)",
+                fontSize: "clamp(14px, 2.7vw, 28px)",
                 color: "#F5DC8A",
                 textShadow:
-                  "0 1px 0 #C9A227, 0 2px 0 #8B6508, 0 3px 0 #5C4033, 0 4px 6px rgba(0,0,0,0.55), 0 0 12px rgba(245,220,138,0.35)",
-                WebkitTextStroke: "0.4px #8B6508",
+                  "0 1px 0 #C9A227, 0 2px 0 #8B6508, 0 3px 0 #5C4033, 0 4px 6px rgba(0,0,0,0.6), 0 0 14px rgba(245,220,138,0.4)",
+                WebkitTextStroke: "0.5px #8B6508",
               }}
             >
               MAHARAJI
             </div>
             <div
-              className="font-serif tracking-[0.32em] mt-1"
+              className="font-serif tracking-[0.34em] mt-1"
               style={{
                 fontSize: "clamp(8px, 1.3vw, 13px)",
                 color: "#FAF6EC",
-                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.7)",
               }}
             >
               KITCHEN
             </div>
-            <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[#F5DC8A]/80">
-              <span className="h-px w-6 bg-[#C9A227]/60" />
+            <div className="mt-1.5 flex items-center justify-center gap-1.5" style={{ color: "rgba(245,220,138,0.85)" }}>
+              <span className="h-px w-6" style={{ background: "rgba(201,162,39,0.65)" }} />
               <span className="text-[8px] tracking-[0.3em] uppercase">A Family Restaurant</span>
-              <span className="h-px w-6 bg-[#C9A227]/60" />
+              <span className="h-px w-6" style={{ background: "rgba(201,162,39,0.65)" }} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ===== PERFORATED TEAR LINE ===== */}
+      {/* perforated tear line */}
       <div
         className="absolute top-[8%] bottom-[8%] w-px"
         style={{
-          left: "62%",
+          left: "40%",
           backgroundImage:
             "repeating-linear-gradient(to bottom, #8B6508 0 4px, transparent 4px 9px)",
         }}
       />
-      {/* tear notches */}
-      <div className="absolute rounded-full bg-[#FAF6EC] border border-[#C9A227]/40" style={{ width: 14, height: 14, left: "calc(62% - 7px)", top: -7 }} />
-      <div className="absolute rounded-full bg-[#FAF6EC] border border-[#C9A227]/40" style={{ width: 14, height: 14, left: "calc(62% - 7px)", bottom: -7 }} />
+      <div className="absolute rounded-full" style={{ width: 14, height: 14, left: "calc(40% - 7px)", top: -7, background: "#FAF6EC", border: "1px solid rgba(201,162,39,0.5)" }} />
+      <div className="absolute rounded-full" style={{ width: 14, height: 14, left: "calc(40% - 7px)", bottom: -7, background: "#FAF6EC", border: "1px solid rgba(201,162,39,0.5)" }} />
 
       {/* ===== RIGHT IVORY CONTENT ===== */}
-      <div className="absolute left-[41%] right-[3%] top-[8%] bottom-[8%] flex flex-col">
-        {/* Heading */}
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="absolute left-[42%] right-[3.5%] top-[7%] bottom-[7%] flex flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
             <div
-              className="font-serif font-black leading-none tracking-tight"
+              className="font-serif font-black leading-none"
               style={{
-                fontSize: "clamp(14px, 2.4vw, 26px)",
-                color: "#8B6508",
-                textShadow: "0 1px 0 #C9A227, 0 2px 3px rgba(139,101,8,0.25)",
+                fontSize: "clamp(14px, 2.5vw, 28px)",
+                color: "#7B1E2B",
+                letterSpacing: "0.12em",
+                textShadow: "0 1px 0 #C9A227, 0 2px 3px rgba(91,15,26,0.25)",
               }}
             >
-              GIFT VOUCHER
+              GIFT&nbsp;&nbsp;VOUCHER
             </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <span className="h-px w-6 bg-[#C9A227]" />
-              <span className="text-[8px] tracking-[0.35em] uppercase text-[#7B1E2B] font-bold">
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="h-px w-6" style={{ background: "#C9A227" }} />
+              <span className="text-[8px] tracking-[0.35em] uppercase font-bold" style={{ color: "#7B1E2B" }}>
                 Special Discount
               </span>
-              <span className="h-px w-6 bg-[#C9A227]" />
+              <span className="h-px flex-1" style={{ background: "linear-gradient(to right, #C9A227, transparent)" }} />
             </div>
           </div>
 
           {/* Embossed value seal */}
-          <div className="relative" style={{ width: "26%", aspectRatio: "1" }}>
+          <div className="relative shrink-0" style={{ width: "27%", aspectRatio: "1" }}>
             <div
               className="absolute inset-0 rounded-full"
               style={{
                 background:
-                  "radial-gradient(circle at 30% 30%, #F5DC8A 0%, #D4AF37 40%, #8B6508 100%)",
+                  "radial-gradient(circle at 30% 30%, #FFF1B8 0%, #F5DC8A 25%, #D4AF37 55%, #8B6508 100%)",
                 boxShadow:
-                  "0 6px 16px rgba(91,15,26,0.4), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -3px 6px rgba(0,0,0,0.25)",
+                  "0 6px 18px rgba(91,15,26,0.45), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.28)",
               }}
             />
-            <div className="absolute inset-[10%] rounded-full border-2 border-dashed border-[#7B1E2B]/40" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-[#5C0F1A]">
-              <div className="text-[7px] tracking-[0.25em] font-bold uppercase opacity-80">Worth</div>
+            <div className="absolute inset-[8%] rounded-full" style={{ border: "2px dashed rgba(123,30,43,0.55)" }} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ color: "#5C0F1A" }}>
+              <div className="text-[7px] tracking-[0.25em] font-bold uppercase opacity-80">Flat</div>
               <div
                 className="font-serif font-black leading-none"
                 style={{
-                  fontSize: "clamp(14px, 2.6vw, 26px)",
-                  textShadow: "0 1px 0 rgba(255,255,255,0.5)",
+                  fontSize: "clamp(15px, 2.8vw, 28px)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.55)",
                 }}
               >
                 ₹{discount}
@@ -179,47 +193,55 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
           </div>
         </div>
 
-        {/* Tagline */}
-        <p className="mt-2 text-[#5C4033] italic leading-snug" style={{ fontSize: "clamp(8px, 1.05vw, 11px)" }}>
-          Present this voucher to enjoy a flat <strong className="not-italic text-[#7B1E2B]">₹{discount}</strong> discount on your royal feast.
-        </p>
+        {/* Tagline + perks list */}
+        <div className="mt-2">
+          <p className="italic leading-snug" style={{ color: "#5C4033", fontSize: "clamp(8px, 1.05vw, 11px)" }}>
+            Present this voucher at the counter to enjoy a flat <strong className="not-italic" style={{ color: "#7B1E2B" }}>₹{discount}</strong> discount on your royal feast.
+          </p>
+          <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" style={{ color: "#5C4033", fontSize: "clamp(7px, 0.95vw, 10px)" }}>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Dine-in &amp; Takeaway</li>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> No Minimum Bill</li>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Valid Once Per Bill</li>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Across All Menus</li>
+          </ul>
+        </div>
 
         {/* Code block */}
         <div className="mt-auto">
           <div
-            className="relative rounded-md px-3 py-2 flex items-center justify-between border border-dashed"
+            className="relative rounded-md px-3 py-2 flex items-center justify-between"
             style={{
-              borderColor: "#7B1E2B",
-              background: "linear-gradient(90deg, rgba(123,30,43,0.05), rgba(212,162,39,0.10), rgba(123,30,43,0.05))",
+              border: "1.5px dashed #7B1E2B",
+              background: "linear-gradient(90deg, rgba(123,30,43,0.06), rgba(212,162,39,0.14), rgba(123,30,43,0.06))",
             }}
           >
             <div>
-              <div className="text-[7px] uppercase tracking-[0.3em] text-[#7B1E2B] font-bold">Coupon Code</div>
+              <div className="text-[7px] uppercase tracking-[0.3em] font-bold" style={{ color: "#7B1E2B" }}>Coupon Code</div>
               <div
-                className="font-mono font-black tracking-[0.25em] text-[#1C1917]"
-                style={{ fontSize: "clamp(11px, 1.7vw, 17px)" }}
+                className="font-mono font-black tracking-[0.28em]"
+                style={{ fontSize: "clamp(11px, 1.8vw, 18px)", color: "#1C1917" }}
               >
                 {code}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[7px] uppercase tracking-[0.3em] text-[#7B1E2B] font-bold">Redeemed</div>
-              <div className="font-serif font-black text-[#5C0F1A]" style={{ fontSize: "clamp(11px, 1.6vw, 15px)" }}>
-                {usedCount} <span className="text-[8px] font-sans font-normal text-[#5C4033]">bill(s)</span>
+              <div className="text-[7px] uppercase tracking-[0.3em] font-bold" style={{ color: "#7B1E2B" }}>Redeemed</div>
+              <div className="font-serif font-black" style={{ fontSize: "clamp(11px, 1.6vw, 15px)", color: "#5C0F1A" }}>
+                {usedCount} <span className="text-[8px] font-sans font-normal" style={{ color: "#5C4033" }}>bill(s)</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-1.5 flex items-center justify-between text-[#8B6508]">
-            <span className="text-[7px] tracking-[0.2em] uppercase opacity-80">★ Royal Taste · Royal Experience</span>
-            <span className="text-[7px] italic opacity-70">Valid once per bill</span>
+          <div className="mt-1.5 flex items-center justify-between" style={{ color: "#8B6508" }}>
+            <span className="text-[7px] tracking-[0.2em] uppercase opacity-90">★ Royal Taste · Royal Experience</span>
+            <span className="text-[7px] italic opacity-80">www.maharajikitchen.com</span>
           </div>
         </div>
       </div>
 
       {/* corner gold flourishes */}
-      <div className="absolute top-2 right-2 w-6 h-6 border-t-2 border-r-2 border-[#C9A227]/70 rounded-tr-md pointer-events-none" />
-      <div className="absolute bottom-2 right-2 w-6 h-6 border-b-2 border-r-2 border-[#C9A227]/70 rounded-br-md pointer-events-none" />
+      <div className="absolute top-3 right-3 w-7 h-7 pointer-events-none" style={{ borderTop: "2px solid #C9A227", borderRight: "2px solid #C9A227", borderTopRightRadius: 6 }} />
+      <div className="absolute bottom-3 right-3 w-7 h-7 pointer-events-none" style={{ borderBottom: "2px solid #C9A227", borderRight: "2px solid #C9A227", borderBottomRightRadius: 6 }} />
     </div>
   );
 });
@@ -302,7 +324,7 @@ export const DashboardOffers: React.FC = () => {
     toast.success("Special Discount Coupon created!");
   };
 
-  // WhatsApp share — opens WA with coupon text
+  // WhatsApp share — anchor click avoids popup blockers
   const handleShareCoupon = (code: string, discount: number) => {
     const text =
       `🎁 *Maharaji Kitchen — Gift Voucher*\n\n` +
@@ -312,24 +334,55 @@ export const DashboardOffers: React.FC = () => {
       `📍 Show this coupon at the counter to redeem.\n\n` +
       `_Valid only at Maharaji Kitchen. Once per bill._`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Opening WhatsApp...");
+    } catch {
+      window.location.href = url;
+    }
   };
 
-  // Download voucher as PDF
+  // Download voucher as PDF — neutralise oklch borders that html2canvas can't parse
   const handleDownloadCoupon = async (couponId: string, code: string) => {
     const node = voucherRefs.current[couponId];
-    if (!node) return;
+    if (!node) {
+      toast.error("Voucher not ready yet.");
+      return;
+    }
+    toast.loading("Generating coupon PDF...", { id: "dl-" + couponId });
     try {
-      toast.loading("Generating coupon PDF...", { id: "dl-" + couponId });
-      const canvas = await html2canvas(node, { scale: 3, backgroundColor: "#ffffff", useCORS: true });
+      const canvas = await html2canvas(node, {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (doc) => {
+          doc.querySelectorAll<HTMLElement>("*").forEach((el) => {
+            const cs = doc.defaultView?.getComputedStyle(el);
+            if (cs?.borderColor && cs.borderColor.includes("oklch")) {
+              el.style.borderColor = "transparent";
+            }
+            if (cs?.color && cs.color.includes("oklch")) {
+              el.style.color = "#1C1917";
+            }
+          });
+        },
+      });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [160, 90] });
       pdf.addImage(imgData, "PNG", 0, 0, 160, 90);
       pdf.save(`Maharaji-Coupon-${code}.pdf`);
       toast.success("Coupon downloaded!", { id: "dl-" + couponId });
     } catch (err) {
-      console.error(err);
-      toast.error("Download failed. Try again.", { id: "dl-" + couponId });
+      console.error("Coupon download failed:", err);
+      toast.error("Download failed. Please try again.", { id: "dl-" + couponId });
     }
   };
 
