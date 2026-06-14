@@ -520,3 +520,24 @@
   background-size: 200% 200%;
   animation: warmGlowBg 14s ease-in-out infinite;
 }
+
+/* Low stock blinking alert banner (admin-only) */
+@keyframes lowStockBlink {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55), 0 10px 30px -10px rgba(220, 38, 38, 0.4);
+    background-color: #fee2e2;
+    border-color: #dc2626;
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0), 0 10px 30px -10px rgba(220, 38, 38, 0.2);
+    background-color: #fecaca;
+    border-color: #991b1b;
+  }
+}
+.low-stock-blink {
+  animation: lowStockBlink 1.4s ease-in-out infinite;
+}
+.low-stock-row {
+  background: linear-gradient(90deg, rgba(254, 226, 226, 0.85) 0%, rgba(254, 202, 202, 0.55) 100%) !important;
+  border-left: 3px solid #dc2626;
+}
