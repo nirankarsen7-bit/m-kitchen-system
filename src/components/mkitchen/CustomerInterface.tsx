@@ -309,50 +309,146 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
           </Card>
         )}
 
-        {/* 3. Point 6: PREMIUM ANIMATED OFFER REEL - looping reveal */}
-        {todaysOffers.filter(o => o.is_active).length > 0 && (
-          <div className="relative h-44 rounded-3xl overflow-hidden border-2 border-gold-rich/40 shadow-xl shadow-maroon-deep/20 animate-gold-pulse-glow">
-            {/* Layer 1: "You're Lucky" reveal */}
-            <div className="absolute inset-0 flex items-center justify-center text-center p-4 bg-gradient-to-br from-[#1C1917] via-maroon-deep to-[#3a1a0d] offer-reel-lucky">
-              <div>
-                <div className="text-3xl mb-1.5 animate-bounce">🎉✨🎁</div>
-                <h3 className="font-serif text-lg font-black welcome-title leading-tight">You're Lucky!</h3>
-                <p className="text-xs text-cream-warm mt-1 font-semibold tracking-wide">You got a chance to grab these</p>
-                <p className="text-xs text-gold-shimmer font-bold uppercase tracking-[0.25em] mt-0.5">Royal Offers Today</p>
-              </div>
-              {/* sparkle particles */}
-              <span className="welcome-spark" style={{ left: '15%', top: '20%', ['--sx' as any]: '60px', ['--sy' as any]: '-40px' }} />
-              <span className="welcome-spark" style={{ left: '80%', top: '30%', animationDelay: '0.4s', ['--sx' as any]: '-50px', ['--sy' as any]: '-30px' }} />
-              <span className="welcome-spark" style={{ left: '50%', top: '70%', animationDelay: '0.7s', ['--sx' as any]: '20px', ['--sy' as any]: '-50px' }} />
-            </div>
+        {/* 3. Point 3: PREMIUM SEQUENTIAL OFFER REEL — Welcome → Offer1 → Offer2 (loop, slow) */}
+        {(() => {
+          const activeOffers = todaysOffers.filter(o => o.is_active).slice(0, 2);
+          // Curated premium food images for offer cards (left side)
+          const offerImages = [
+            "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=800&q=80",
+            "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&q=80",
+          ];
+          // Curated couple eye-catchy color themes for cards
+          const cardThemes = [
+            { from: "from-[#FFF4D6]", via: "via-[#FFE08A]", to: "to-[#FFB347]", chip: "bg-maroon-deep text-gold-shimmer", title: "text-maroon-deep", body: "text-[#5A2A0E]", ring: "ring-amber-400/60" },
+            { from: "from-[#FFE4F1]", via: "via-[#FFB3D9]", to: "to-[#E94560]", chip: "bg-[#5C0B2A] text-[#FFD9E8]", title: "text-[#5C0B2A]", body: "text-[#6B1431]", ring: "ring-pink-400/60" },
+          ];
 
-            {/* Layer 2: Offers reveal */}
-            <div className="absolute inset-0 p-3 bg-gradient-to-br from-maroon-deep via-maroon-royal to-[#3a1a0d] offer-reel-offers overflow-hidden">
-              <div className="grid grid-cols-2 gap-2 h-full">
-                {/* Live offers from store (max 1) */}
-                {todaysOffers.filter(o => o.is_active).slice(0, 1).map(offer => (
-                  <div key={offer.id} className="animate-offer-float bg-gradient-to-br from-cream-ivory to-cream-warm rounded-2xl p-3 border-2 border-gold-rich/50 flex flex-col justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/40 to-transparent -translate-x-full animate-shimmer-sweep" />
-                    <div className="relative z-10">
-                      <span className="text-[8px] uppercase tracking-[0.18em] text-maroon-royal font-black">Royal Special</span>
-                      <h4 className="font-serif text-[13px] font-black text-maroon-deep leading-tight mt-0.5">{offer.title}</h4>
-                      <p className="text-[10px] text-mocha mt-1 leading-snug line-clamp-2">{offer.subtitle}</p>
-                    </div>
-                  </div>
+          return (
+            <div className="relative h-52 rounded-3xl overflow-hidden border-2 border-gold-rich/50 shadow-2xl shadow-maroon-deep/30 animate-gold-pulse-glow bg-gradient-to-br from-[#1C1109] via-[#2D1810] to-[#3a1a0d]">
+              {/* Rotating gold ornament backdrop */}
+              <svg className="absolute -top-10 -right-10 w-44 h-44 opacity-15 animate-ornament-spin pointer-events-none" viewBox="0 0 100 100">
+                <defs>
+                  <radialGradient id="orn-grad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#FFE08A" />
+                    <stop offset="100%" stopColor="#D4AF37" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" fill="url(#orn-grad)" />
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <rect key={i} x="49" y="2" width="2" height="14" fill="#FFE08A" transform={`rotate(${i * 22.5} 50 50)`} />
                 ))}
-                {/* Static featured coupon */}
-                <div className="animate-offer-float bg-gradient-to-br from-[#1C1917] to-[#2D2A26] rounded-2xl p-3 border-2 border-gold-rich/50 flex flex-col justify-center relative overflow-hidden" style={{ animationDelay: '0.4s' }}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/30 to-transparent -translate-x-full animate-shimmer-sweep" />
-                  <div className="relative z-10">
-                    <span className="text-[8px] uppercase tracking-[0.18em] text-gold-shimmer font-black">Captain's Choice</span>
-                    <h4 className="font-serif text-[13px] font-black text-white leading-tight mt-0.5">₹100 OFF</h4>
-                    <p className="text-[10px] text-cream-warm mt-1 leading-snug">Use code <span className="font-mono font-black text-gold-shimmer">WELCOME100</span> above ₹500</p>
+              </svg>
+
+              {/* PHASE 1 — Welcome + Namaste */}
+              <div className="offer-phase-1 absolute inset-0 flex items-center justify-center text-center px-5">
+                <div className="flex items-center gap-4">
+                  {/* Animated namaste SVG */}
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                    <span className="absolute inset-0 rounded-full bg-gold-shimmer/30 blur-xl animate-namaste-halo" />
+                    <svg viewBox="0 0 64 64" className="relative w-16 h-16 animate-namaste">
+                      <defs>
+                        <linearGradient id="hand-grad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#FFE5B4" />
+                          <stop offset="100%" stopColor="#E8A87C" />
+                        </linearGradient>
+                        <radialGradient id="halo-grad" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="#FFE08A" stopOpacity="0.9" />
+                          <stop offset="100%" stopColor="#FFE08A" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                      <circle cx="32" cy="30" r="22" fill="url(#halo-grad)" />
+                      {/* Left palm */}
+                      <path d="M22 50 Q18 38 24 24 Q26 18 30 16 L30 50 Z" fill="url(#hand-grad)" stroke="#A0522D" strokeWidth="0.8" strokeLinejoin="round" />
+                      {/* Right palm */}
+                      <path d="M42 50 Q46 38 40 24 Q38 18 34 16 L34 50 Z" fill="url(#hand-grad)" stroke="#A0522D" strokeWidth="0.8" strokeLinejoin="round" />
+                      {/* Light beam between palms */}
+                      <rect x="31" y="18" width="2" height="30" fill="#FFE08A" opacity="0.5" />
+                      {/* Wrist band */}
+                      <rect x="20" y="50" width="24" height="4" rx="2" fill="#7B1E2B" />
+                      <rect x="20" y="50" width="24" height="2" rx="1" fill="#D4AF37" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-gold-shimmer font-bold">Namaste 🙏</p>
+                    <h3
+                      className="font-serif text-xl font-black leading-tight animate-welcome-shine bg-clip-text text-transparent"
+                      style={{ backgroundImage: "linear-gradient(90deg,#FFD27A 0%,#FFF1B8 35%,#FFD27A 70%,#FFB347 100%)" }}
+                    >
+                      Welcome to Maharaji Kitchen
+                    </h3>
+                    <p className="text-[11px] text-cream-warm/85 italic mt-0.5">Royal taste awaits you — Table {tableNum}</p>
                   </div>
                 </div>
               </div>
+
+              {/* PHASE 2 + 3 — Offer cards (sequential) */}
+              {activeOffers.length === 0 && (
+                <div className="offer-phase-2 absolute inset-0 flex items-center justify-center text-center px-6">
+                  <p className="text-sm text-cream-warm font-medium italic">Today's special offers coming soon ✨</p>
+                </div>
+              )}
+
+              {activeOffers.map((offer, idx) => {
+                const theme = cardThemes[idx % cardThemes.length];
+                const img = offerImages[idx % offerImages.length];
+                const phaseClass = idx === 0 ? "offer-phase-2" : "offer-phase-3";
+                const indicator = idx === 0 ? "OFFER 1 OF " + activeOffers.length : "OFFER 2 OF " + activeOffers.length;
+                return (
+                  <div key={offer.id} className={`${phaseClass} absolute inset-0 p-3`}>
+                    <div className={`relative h-full w-full rounded-2xl overflow-hidden bg-gradient-to-br ${theme.from} ${theme.via} ${theme.to} ring-2 ${theme.ring} shadow-xl`}>
+                      {/* Slow shimmer sweep */}
+                      <div className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/55 to-transparent animate-offer-card-shimmer pointer-events-none" />
+
+                      <div className="relative flex h-full">
+                        {/* LEFT — premium animated food image */}
+                        <div className="w-2/5 relative overflow-hidden">
+                          <div className="absolute inset-0 animate-offer-image-float">
+                            <img
+                              src={img}
+                              alt={offer.title}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
+                          {/* Floating animated SVG sparkle */}
+                          <svg className="absolute top-2 left-2 w-6 h-6 animate-namaste-halo" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2 L13.8 9 L21 10.5 L13.8 12 L12 19 L10.2 12 L3 10.5 L10.2 9 Z" fill="#FFE08A" stroke="#D4AF37" strokeWidth="0.6" />
+                          </svg>
+                        </div>
+
+                        {/* RIGHT — offer details */}
+                        <div className="flex-1 p-3 flex flex-col justify-center">
+                          <span className={`inline-block self-start px-2 py-0.5 rounded-full ${theme.chip} text-[8px] uppercase tracking-[0.2em] font-black mb-1`}>
+                            {indicator}
+                          </span>
+                          <h4 className={`font-serif text-[15px] font-black ${theme.title} leading-tight`}>{offer.title}</h4>
+                          <p className={`text-[11px] ${theme.body} mt-1 leading-snug line-clamp-3 font-medium`}>{offer.subtitle}</p>
+
+                          {/* Animated CTA-like badge */}
+                          <div className="mt-2 inline-flex items-center gap-1 self-start">
+                            <svg className="w-3.5 h-3.5 animate-namaste" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 2 L15 9 L22 9.5 L16.5 14 L18.5 21 L12 17 L5.5 21 L7.5 14 L2 9.5 L9 9 Z" fill="#D4AF37" stroke="#7B1E2B" strokeWidth="0.6" />
+                            </svg>
+                            <span className={`text-[9px] uppercase font-extrabold tracking-wider ${theme.title}`}>Royal Special Today</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Bottom phase indicator dots */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 pointer-events-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-gold-shimmer/60" />
+                {activeOffers.length >= 1 && <span className="w-1.5 h-1.5 rounded-full bg-gold-shimmer/60" />}
+                {activeOffers.length >= 2 && <span className="w-1.5 h-1.5 rounded-full bg-gold-shimmer/60" />}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
 
 
         {/* 5. Custom Search Bar with integrated Voice Recognition */}
