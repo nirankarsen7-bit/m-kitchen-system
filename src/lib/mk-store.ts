@@ -767,18 +767,33 @@ export const useStore = create<AppState>((set, get) => {
       
       let discount = 0;
       let applied_code = null;
+      let pendingCouponUpdate: ((billId: string) => void) | null = null;
       if (coupon_code) {
         const validation = get().validateCoupon(coupon_code, subtotal);
         if (validation.valid) {
           discount = validation.discountAmount;
           applied_code = coupon_code;
-          
-          // Set coupon status to USED
-          const updatedCoupons = get().coupons.map(c => 
-            c.code.toUpperCase() === coupon_code.toUpperCase() ? { ...c, status: CouponStatus.USED } : c
-          );
-          set({ coupons: updatedCoupons });
-          saveToStorage("coupons", updatedCoupons);
+
+          const couponObj = get().coupons.find(c => c.code.toUpperCase() === coupon_code.toUpperCase());
+          if (couponObj?.is_special_discount) {
+            // Defer until billId is known — track per-bill usage, do not mark USED.
+            pendingCouponUpdate = (billId: string) => {
+              const updatedCoupons = get().coupons.map(c =>
+                c.id === couponObj.id
+                  ? { ...c, used_bill_ids: [...(c.used_bill_ids || []), billId] }
+                  : c
+              );
+              set({ coupons: updatedCoupons });
+              saveToStorage("coupons", updatedCoupons);
+            };
+          } else {
+            // Set coupon status to USED (legacy single-use coupons)
+            const updatedCoupons = get().coupons.map(c =>
+              c.code.toUpperCase() === coupon_code.toUpperCase() ? { ...c, status: CouponStatus.USED } : c
+            );
+            set({ coupons: updatedCoupons });
+            saveToStorage("coupons", updatedCoupons);
+          }
         }
       }
 
