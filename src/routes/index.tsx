@@ -151,6 +151,8 @@ function AppShell() {
         return <DashboardOffers />;
       case "stock":
         return <DashboardStock />;
+      case "suppliers":
+        return <DashboardSuppliers />;
       case "archive":
         return <DashboardBills />;
       case "stats":
