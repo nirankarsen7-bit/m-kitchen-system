@@ -205,8 +205,33 @@ export const DashboardStock: React.FC = () => {
     toast.success("Stock data exported successfully!");
   };
 
+  // Set of low-stock material names (lowercased) for row highlighting
+  const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
+
   return (
     <div className="space-y-6 font-sans">
+
+      {/* LOW STOCK ALERT BANNER — Admin only, blinking */}
+      {isAdmin && lowStockList.length > 0 && (
+        <div className="low-stock-blink border-2 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5 animate-pulse" />
+          <div className="flex-1">
+            <h4 className="font-serif text-base font-black text-red-800 leading-tight">
+              Low Stock Alert — {lowStockList.length} material{lowStockList.length > 1 ? "s" : ""} need{lowStockList.length > 1 ? "" : "s"} restock
+            </h4>
+            <p className="text-[11px] text-red-900/80 mt-1">
+              These materials have crossed 70% consumption. Restock soon to avoid running out.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {lowStockList.map((ls, i) => (
+                <span key={i} className="text-[10px] font-bold uppercase tracking-wider bg-white/80 text-red-800 px-2 py-0.5 rounded border border-red-400">
+                  {ls.material} · {Math.round(ls.percentConsumed * 100)}% used
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HEADER BAR */}
       <div className="border-b border-gold-rich/10 pb-4">
@@ -419,10 +444,21 @@ export const DashboardStock: React.FC = () => {
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
 
+                      const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
+
                       return (
-                        <tr key={s.id} className="hover:bg-[#FAF7F2]/40 transition-colors">
+                        <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
                           <td className="p-3 text-mocha">{new Date(s.date).toLocaleDateString()}</td>
-                          <td className="p-3 font-semibold text-espresso">{s.item_name}</td>
+                          <td className="p-3 font-semibold text-espresso">
+                            <span className="inline-flex items-center gap-1.5">
+                              {s.item_name}
+                              {isLow && (
+                                <span className="text-[8px] font-black uppercase tracking-wider bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
+                                  Low
+                                </span>
+                              )}
+                            </span>
+                          </td>
                           <td className="p-3 font-mono font-bold text-espresso">{s.quantity} {s.unit}</td>
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
@@ -457,26 +493,40 @@ export const DashboardStock: React.FC = () => {
 
       </div>
 
-      {/* F8: LOW STOCK ALERTS (auto-computed from per-plate usage vs purchases vs sales) */}
-      {lowStockList.length > 0 && (
-        <div className="border-t-2 border-warning/30 pt-6">
-          <div className="bg-red-50 border-2 border-warning rounded-2xl p-5 space-y-3 shadow-lg">
-            <h4 className="font-serif text-base font-bold text-warning flex items-center gap-2">
+      {/* Low Stock detail breakdown — Admin only (≥70% consumption rule) */}
+      {isAdmin && lowStockList.length > 0 && (
+        <div className="border-t-2 border-red-300 pt-6">
+          <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-5 space-y-3 shadow-lg">
+            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 animate-pulse" />
-              Low Stock Alerts ({lowStockList.length})
+              Low Stock Details ({lowStockList.length})
             </h4>
             <p className="text-[11px] text-mocha leading-relaxed">
-              These raw materials are running low based on per-plate usage vs current stock vs sales recorded.
+              Materials below have crossed 70% consumption based on Knowledge Base per-plate usage vs confirmed orders.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {lowStockList.map((ls, idx) => (
-                <div key={idx} className="bg-white p-3 rounded-xl border border-warning/30">
-                  <div className="font-bold text-espresso text-sm">{ls.material}</div>
+                <div key={idx} className="bg-white p-3 rounded-xl border border-red-300">
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-espresso text-sm">{ls.material}</div>
+                    <span className="text-[9px] font-black uppercase bg-red-600 text-white px-1.5 py-0.5 rounded">
+                      {Math.round(ls.percentConsumed * 100)}% used
+                    </span>
+                  </div>
                   <div className="text-[10px] text-mocha mt-1">
-                    Stock left: <span className="font-mono font-bold text-warning">{ls.currentStock.toFixed(2)} {ls.unit}</span>
+                    Purchased: <span className="font-mono font-bold">{ls.totalPurchased.toFixed(2)} {ls.unit}</span>
                   </div>
                   <div className="text-[10px] text-mocha">
-                    Est. usage so far: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
+                    Consumed: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
+                  </div>
+                  <div className="text-[10px] text-mocha">
+                    Stock left: <span className="font-mono font-bold text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full bg-red-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-600"
+                      style={{ width: `${Math.min(100, Math.round(ls.percentConsumed * 100))}%` }}
+                    />
                   </div>
                 </div>
               ))}
