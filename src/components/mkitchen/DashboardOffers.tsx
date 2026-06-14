@@ -819,7 +819,7 @@ export const DashboardOffers: React.FC = () => {
                           <Share2 className="w-3.5 h-3.5" /> WhatsApp
                         </button>
                         <button
-                          onClick={() => handleDownloadCoupon(cop.id, cop.code)}
+                          onClick={() => handleDownloadCoupon(cop.id, { code: cop.code, discount: cop.discount, usedCount })}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gold-gradient text-charcoal-deep text-[11px] font-bold uppercase tracking-wider hover:brightness-105 transition-all shadow-md"
                         >
                           <Download className="w-3.5 h-3.5" /> Download
