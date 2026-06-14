@@ -326,32 +326,91 @@
 }
 
 /* ====================================================================
- * Premium offer reel - infinite loop reveal for customer offers
+ * Premium offer reel — sequential, slow, infinite loop
+ * Phase 1: Welcome + Namaste  (0 - 33%)
+ * Phase 2: Offer slot 1        (33 - 66%)
+ * Phase 3: Offer slot 2        (66 - 100%)
+ * Total cycle: 18s (slow enough to comfortably read)
  * ==================================================================== */
-@keyframes offerReelLuckyIn {
-  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
-  6%, 28% { opacity: 1; transform: scale(1) translateY(0); }
-  33%, 100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+@keyframes offerPhase1 {
+  0% { opacity: 0; transform: translateX(-30px) scale(0.96); }
+  3%, 30% { opacity: 1; transform: translateX(0) scale(1); }
+  33%, 100% { opacity: 0; transform: translateX(30px) scale(0.96); pointer-events: none; }
 }
-@keyframes offerReelOffersIn {
-  0%, 32% { opacity: 0; transform: scale(0.9) translateY(20px); }
-  38%, 92% { opacity: 1; transform: scale(1) translateY(0); }
-  98%, 100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+@keyframes offerPhase2 {
+  0%, 33% { opacity: 0; transform: translateX(-30px) scale(0.96); pointer-events: none; }
+  36%, 63% { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+  66%, 100% { opacity: 0; transform: translateX(30px) scale(0.96); pointer-events: none; }
 }
-.offer-reel-lucky { animation: offerReelLuckyIn 9s ease-in-out infinite; }
-.offer-reel-offers { animation: offerReelOffersIn 9s ease-in-out infinite; }
+@keyframes offerPhase3 {
+  0%, 66% { opacity: 0; transform: translateX(-30px) scale(0.96); pointer-events: none; }
+  69%, 97% { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+  100% { opacity: 0; transform: translateX(30px) scale(0.96); pointer-events: none; }
+}
+.offer-phase-1 { animation: offerPhase1 18s ease-in-out infinite; }
+.offer-phase-2 { animation: offerPhase2 18s ease-in-out infinite; }
+.offer-phase-3 { animation: offerPhase3 18s ease-in-out infinite; }
+
+/* Namaste hands gentle bow + glow */
+@keyframes namasteBow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.06); }
+}
+.animate-namaste { animation: namasteBow 2.4s ease-in-out infinite; transform-origin: center bottom; }
+
+@keyframes namasteHalo {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.18); }
+}
+.animate-namaste-halo { animation: namasteHalo 2.4s ease-in-out infinite; }
+
+/* Slow welcome title glow */
+@keyframes welcomeShine {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-welcome-shine {
+  background-size: 200% 100%;
+  animation: welcomeShine 4s ease-in-out infinite;
+}
+
+/* Gentle floating for offer image */
+@keyframes offerImageFloat {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+.animate-offer-image-float { animation: offerImageFloat 5s ease-in-out infinite; }
+
+/* Slow shimmer sweep on offer card */
+@keyframes offerCardShimmer {
+  0% { transform: translateX(-150%) skewX(-12deg); }
+  60%, 100% { transform: translateX(250%) skewX(-12deg); }
+}
+.animate-offer-card-shimmer { animation: offerCardShimmer 5s ease-in-out infinite; }
+
+/* Animated SVG ornament rotate */
+@keyframes ornamentSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-ornament-spin { animation: ornamentSpin 18s linear infinite; }
+
+/* Legacy aliases (kept so old refs don't break) */
+.offer-reel-lucky { animation: offerPhase1 18s ease-in-out infinite; }
+.offer-reel-offers { animation: offerPhase2 18s ease-in-out infinite; }
 
 @keyframes offerCardFloat {
   0%, 100% { transform: translateY(0) rotate(-0.3deg); box-shadow: 0 6px 24px rgba(139,101,8,0.25); }
   50% { transform: translateY(-4px) rotate(0.3deg); box-shadow: 0 14px 36px rgba(139,101,8,0.45); }
 }
-.animate-offer-float { animation: offerCardFloat 3.5s ease-in-out infinite; }
+.animate-offer-float { animation: offerCardFloat 4.5s ease-in-out infinite; }
 
 @keyframes goldPulseGlow {
-  0%, 100% { box-shadow: 0 0 10px rgba(212,175,55,0.45), 0 0 0 1px rgba(212,175,55,0.3); }
-  50% { box-shadow: 0 0 28px rgba(245,220,138,0.75), 0 0 0 2px rgba(212,175,55,0.6); }
+  0%, 100% { box-shadow: 0 0 14px rgba(212,175,55,0.45), 0 0 0 1px rgba(212,175,55,0.3); }
+  50% { box-shadow: 0 0 36px rgba(245,220,138,0.85), 0 0 0 2px rgba(212,175,55,0.7); }
 }
-.animate-gold-pulse-glow { animation: goldPulseGlow 2.4s ease-in-out infinite; }
+.animate-gold-pulse-glow { animation: goldPulseGlow 3.6s ease-in-out infinite; }
+
 
 /* ====================================================================
  * Premium button sheen sweep (subtle on hover)

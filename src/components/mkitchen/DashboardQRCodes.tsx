@@ -13,27 +13,45 @@ export const DashboardQRCodes: React.FC = () => {
   // States
   const [selectedTableNum, setSelectedTableNum] = useState<number>(1);
   const [qrBase64, setQrBase64] = useState<string>("");
+  // Point 1: Public Menu Base URL — saved so QR codes point to the published site,
+  // not the preview URL (which requires Lovable login and shows the Lovable logo).
+  const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("mk_public_menu_base_url") || `${window.location.protocol}//${window.location.host}`;
+  });
+
+  const savePublicBaseUrl = (url: string) => {
+    const cleaned = url.trim().replace(/\/+$/, "");
+    setPublicBaseUrl(cleaned);
+    localStorage.setItem("mk_public_menu_base_url", cleaned);
+    toast.success("Public menu URL saved. New QR codes will use it.");
+  };
 
   // Chef Logo URL provided by user
   const logoUrl = "https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png";
 
+  const buildMenuUrl = (tableN: number) => {
+    const base = (publicBaseUrl || `${window.location.protocol}//${window.location.host}`).replace(/\/+$/, "");
+    return `${base}/menu?table=${tableN}`;
+  };
+
   useEffect(() => {
-    // Re-generate QR link when table number pivots
-    const destinationUrl = `${window.location.protocol}//${window.location.host}/menu?table=${selectedTableNum}`;
+    const destinationUrl = buildMenuUrl(selectedTableNum);
     QRCode.toDataURL(
       destinationUrl,
-      { 
-        width: 600, 
-        margin: 1, 
-        color: { dark: "#1C1917", light: "#FFFFFF" } 
-      }, 
+      {
+        width: 600,
+        margin: 1,
+        color: { dark: "#1C1917", light: "#FFFFFF" }
+      },
       (err, url) => {
         if (!err) {
           setQrBase64(url);
         }
       }
     );
-  }, [selectedTableNum]);
+  }, [selectedTableNum, publicBaseUrl]);
+
 
   // Method to render premium canvas and trigger high-resolution JPG download
   const handleDownloadJPG = () => {
@@ -474,7 +492,7 @@ export const DashboardQRCodes: React.FC = () => {
         isFirst = false;
 
         // Generate QR for this table
-        const destUrl = `${window.location.protocol}//${window.location.host}/menu?table=${t}`;
+        const destUrl = buildMenuUrl(t);
         const qrDataUrl = await QRCode.toDataURL(destUrl, { width: 600, margin: 1, color: { dark: "#1C1917", light: "#FFFFFF" } });
 
         // Background
@@ -572,12 +590,40 @@ export const DashboardQRCodes: React.FC = () => {
               <div className="font-bold uppercase text-maroon-royal mb-1 flex items-center gap-1">
                 <Info className="w-3.5 h-3.5" /> LUXURY SINK GRAPHICS
               </div>
-              <div>• Destination URL: <span className="text-espresso font-semibold underline">/menu?table={selectedTableNum}</span></div>
+              <div className="break-all">• Destination URL: <span className="text-espresso font-semibold underline">{buildMenuUrl(selectedTableNum)}</span></div>
               <div>• Border: Double royal gold bezel with corner dots</div>
               <div>• Embedded QR Stamps: Medallion icon centered</div>
             </div>
 
+            {/* Point 1: Public Menu Base URL — solves the "Lovable login wall" QR issue */}
+            <div className="p-3 bg-gradient-to-br from-maroon-deep/5 to-gold-rich/5 rounded-xl border-2 border-gold-rich/30 space-y-2">
+              <label className="block text-[10px] text-maroon-royal uppercase font-extrabold tracking-wider">
+                Public Menu URL (for QR scans)
+              </label>
+              <p className="text-[10px] text-mocha leading-relaxed">
+                Yahan apna <span className="font-bold text-maroon-royal">published / live website URL</span> daalein (jaise <span className="font-mono">https://maharaji-kitchen.vercel.app</span>). QR scan karne par customer ke phone ke default browser me directly menu khulega — bina kisi login ke.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={publicBaseUrl}
+                  onChange={(e) => setPublicBaseUrl(e.target.value)}
+                  placeholder="https://your-published-site.com"
+                  className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-gold-rich/30 focus:outline-none focus:border-gold-rich text-espresso bg-white"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="text-[10px] uppercase font-bold px-3"
+                  onClick={() => savePublicBaseUrl(publicBaseUrl)}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
+
               <Button
                 variant="gold"
                 className="w-full py-3.5 text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-1.5 shadow-md"
