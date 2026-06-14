@@ -205,8 +205,33 @@ export const DashboardStock: React.FC = () => {
     toast.success("Stock data exported successfully!");
   };
 
+  // Set of low-stock material names (lowercased) for row highlighting
+  const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
+
   return (
     <div className="space-y-6 font-sans">
+
+      {/* LOW STOCK ALERT BANNER — Admin only, blinking */}
+      {isAdmin && lowStockList.length > 0 && (
+        <div className="low-stock-blink border-2 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5 animate-pulse" />
+          <div className="flex-1">
+            <h4 className="font-serif text-base font-black text-red-800 leading-tight">
+              Low Stock Alert — {lowStockList.length} material{lowStockList.length > 1 ? "s" : ""} need{lowStockList.length > 1 ? "" : "s"} restock
+            </h4>
+            <p className="text-[11px] text-red-900/80 mt-1">
+              These materials have crossed 70% consumption. Restock soon to avoid running out.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {lowStockList.map((ls, i) => (
+                <span key={i} className="text-[10px] font-bold uppercase tracking-wider bg-white/80 text-red-800 px-2 py-0.5 rounded border border-red-400">
+                  {ls.material} · {Math.round(ls.percentConsumed * 100)}% used
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HEADER BAR */}
       <div className="border-b border-gold-rich/10 pb-4">
