@@ -262,6 +262,7 @@ interface AppState {
   coupons: Coupon[];
   addCoupon: (coupon: Omit<Coupon, "id" | "status">) => void;
   deleteCoupon: (id: string) => void;
+  toggleCoupon: (id: string) => void;
 
   // Stock tracking
   stockPurchases: StockPurchase[];
