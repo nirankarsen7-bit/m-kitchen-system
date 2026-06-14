@@ -4,9 +4,252 @@ import { UserRole } from "@/lib/mk-types";
 import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Settings, Share2, Crown, Power, Download, TicketCheck, BarChart3 } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import logoOutlineAsset from "@/assets/logo_outline.png.asset.json";
+
+type CouponDownloadData = {
+  code: string;
+  discount: number;
+  usedCount: number;
+};
+
+const loadCouponLogo = () => new Promise<HTMLImageElement | null>((resolve) => {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = () => resolve(image);
+  image.onerror = () => resolve(null);
+  image.src = logoOutlineAsset.url;
+});
+
+const roundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+};
+
+const drawCenteredImage = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, cx: number, cy: number, maxWidth: number, maxHeight: number) => {
+  const ratio = Math.min(maxWidth / image.width, maxHeight / image.height);
+  const width = image.width * ratio;
+  const height = image.height * ratio;
+  ctx.drawImage(image, cx - width / 2, cy - height / 2, width, height);
+};
+
+const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownloadData) => {
+  const logo = await loadCouponLogo();
+  const canvas = document.createElement("canvas");
+  const width = 1800;
+  const height = 973;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not available");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  roundedRect(ctx, 32, 32, width - 64, height - 64, 38);
+  ctx.clip();
+
+  const bodyGradient = ctx.createLinearGradient(0, 0, width, height);
+  bodyGradient.addColorStop(0, "#fffaf0");
+  bodyGradient.addColorStop(0.5, "#f6ead0");
+  bodyGradient.addColorStop(1, "#fff8e8");
+  ctx.fillStyle = bodyGradient;
+  ctx.fillRect(32, 32, width - 64, height - 64);
+
+  ctx.save();
+  ctx.globalAlpha = 0.13;
+  ctx.strokeStyle = "#8b6508";
+  ctx.lineWidth = 1.2;
+  for (let x = -height; x < width; x += 36) {
+    ctx.beginPath();
+    ctx.moveTo(x, 32);
+    ctx.lineTo(x + height, height - 32);
+    ctx.stroke();
+  }
+  for (let x = 0; x < width + height; x += 46) {
+    ctx.beginPath();
+    ctx.moveTo(x, 32);
+    ctx.lineTo(x - height, height - 32);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const panelWidth = 720;
+  const panelGradient = ctx.createLinearGradient(32, 32, panelWidth, height - 32);
+  panelGradient.addColorStop(0, "#4a0710");
+  panelGradient.addColorStop(0.54, "#270308");
+  panelGradient.addColorStop(1, "#100102");
+  ctx.fillStyle = panelGradient;
+  ctx.fillRect(32, 32, panelWidth, height - 64);
+
+  const glow = ctx.createRadialGradient(260, 240, 10, 260, 240, 560);
+  glow.addColorStop(0, "rgba(245,220,138,0.30)");
+  glow.addColorStop(1, "rgba(245,220,138,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(32, 32, panelWidth, height - 64);
+
+  if (logo) {
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.filter = "brightness(0) invert(1)";
+    drawCenteredImage(ctx, logo, 365, height / 2, 760, 760);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.98;
+    ctx.filter = "brightness(0) invert(1) drop-shadow(0 0 24px rgba(245,220,138,0.75))";
+    drawCenteredImage(ctx, logo, 365, 320, 345, 300);
+    ctx.restore();
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#f5dc8a";
+  ctx.font = "900 58px Georgia, serif";
+  ctx.shadowColor = "rgba(0,0,0,0.65)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 7;
+  ctx.fillText("MAHARAJI", 365, 565);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#fff7e4";
+  ctx.font = "700 25px Georgia, serif";
+  ctx.fillText("K I T C H E N", 365, 614);
+  ctx.fillStyle = "#d4af37";
+  ctx.font = "700 17px Arial, sans-serif";
+  ctx.fillText("A FAMILY RESTAURANT", 365, 662);
+
+  ctx.fillStyle = "#d4af37";
+  ctx.fillRect(panelWidth + 32, 32, 12, height - 64);
+  ctx.fillStyle = "rgba(245,220,138,0.6)";
+  ctx.fillRect(panelWidth + 62, 108, 2, height - 216);
+  ctx.strokeStyle = "#8b6508";
+  ctx.setLineDash([12, 18]);
+  ctx.beginPath();
+  ctx.moveTo(panelWidth + 42, 92);
+  ctx.lineTo(panelWidth + 42, height - 92);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#6e1624";
+  ctx.font = "900 58px Georgia, serif";
+  ctx.shadowColor = "rgba(139,101,8,0.25)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 4;
+  ctx.fillText("G I F T   V O U C H E R", 815, 180);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#8b6508";
+  ctx.fillRect(820, 218, 350, 4);
+  ctx.fillStyle = "#6e1624";
+  ctx.font = "800 25px Arial, sans-serif";
+  ctx.fillText("SPECIAL DISCOUNT", 820, 260);
+
+  const sealX = 1428;
+  const sealY = 238;
+  const sealGradient = ctx.createRadialGradient(sealX - 40, sealY - 50, 10, sealX, sealY, 155);
+  sealGradient.addColorStop(0, "#fff1b8");
+  sealGradient.addColorStop(0.34, "#f5dc8a");
+  sealGradient.addColorStop(0.7, "#d4af37");
+  sealGradient.addColorStop(1, "#8b6508");
+  ctx.fillStyle = sealGradient;
+  ctx.beginPath();
+  ctx.arc(sealX, sealY, 145, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(91,15,26,0.72)";
+  ctx.lineWidth = 5;
+  ctx.setLineDash([12, 12]);
+  ctx.beginPath();
+  ctx.arc(sealX, sealY, 122, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#4a0710";
+  ctx.font = "900 26px Arial, sans-serif";
+  ctx.fillText("FLAT", sealX, sealY - 48);
+  ctx.font = "900 70px Georgia, serif";
+  ctx.fillText(`₹${discount}`, sealX, sealY + 30);
+  ctx.font = "900 25px Arial, sans-serif";
+  ctx.fillText("OFF", sealX, sealY + 76);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#4b3528";
+  ctx.font = "italic 31px Georgia, serif";
+  ctx.fillText("Present this voucher at the counter to enjoy", 820, 365);
+  ctx.font = "italic 31px Georgia, serif";
+  ctx.fillText("a royal discount on your Maharaji feast.", 820, 408);
+
+  ctx.fillStyle = "#5c4033";
+  ctx.font = "700 25px Arial, sans-serif";
+  const perks = ["Dine-in & Takeaway", "No Minimum Bill", "Valid Once Per Bill", "Across All Menus"];
+  perks.forEach((perk, index) => {
+    const x = 835 + (index % 2) * 385;
+    const y = 486 + Math.floor(index / 2) * 54;
+    ctx.fillStyle = "#c9a227";
+    ctx.fillText("◆", x, y);
+    ctx.fillStyle = "#5c4033";
+    ctx.fillText(perk, x + 32, y);
+  });
+
+  roundedRect(ctx, 820, 635, 825, 150, 18);
+  ctx.fillStyle = "rgba(123,30,43,0.06)";
+  ctx.fill();
+  ctx.strokeStyle = "#7b1e2b";
+  ctx.lineWidth = 4;
+  ctx.setLineDash([16, 12]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#7b1e2b";
+  ctx.font = "900 22px Arial, sans-serif";
+  ctx.fillText("COUPON CODE", 858, 690);
+  ctx.fillStyle = "#17120f";
+  ctx.font = "900 48px 'Courier New', monospace";
+  ctx.fillText(code, 858, 752);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#7b1e2b";
+  ctx.font = "900 22px Arial, sans-serif";
+  ctx.fillText("REDEEMED", 1600, 690);
+  ctx.fillStyle = "#4a0710";
+  ctx.font = "900 42px Georgia, serif";
+  ctx.fillText(`${usedCount} BILL(S)`, 1600, 750);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#8b6508";
+  ctx.font = "700 19px Arial, sans-serif";
+  ctx.fillText("★ Royal Taste · Royal Experience", 820, 842);
+  ctx.textAlign = "right";
+  ctx.font = "italic 19px Georgia, serif";
+  ctx.fillText("www.maharajikitchen.com", 1600, 842);
+
+  ctx.restore();
+  ctx.strokeStyle = "#4a0710";
+  ctx.lineWidth = 20;
+  roundedRect(ctx, 42, 42, width - 84, height - 84, 28);
+  ctx.stroke();
+  ctx.strokeStyle = "#d4af37";
+  ctx.lineWidth = 6;
+  roundedRect(ctx, 62, 62, width - 124, height - 124, 18);
+  ctx.stroke();
+
+  const safeCode = code.replace(/[^a-z0-9_-]/gi, "_");
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.96));
+  const href = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/jpeg", 0.96);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = `Maharaji-Coupon-${safeCode}.jpg`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if (blob) setTimeout(() => URL.revokeObjectURL(href), 1000);
+};
 
 // ============================
 // Gift-Voucher style Coupon Card (matches reference)
@@ -348,38 +591,12 @@ export const DashboardOffers: React.FC = () => {
     }
   };
 
-  // Download voucher as PDF — neutralise oklch borders that html2canvas can't parse
-  const handleDownloadCoupon = async (couponId: string, code: string) => {
-    const node = voucherRefs.current[couponId];
-    if (!node) {
-      toast.error("Voucher not ready yet.");
-      return;
-    }
-    toast.loading("Generating coupon PDF...", { id: "dl-" + couponId });
+  // Download voucher as JPG image — direct canvas drawing avoids html2canvas oklch failures
+  const handleDownloadCoupon = async (couponId: string, coupon: CouponDownloadData) => {
+    toast.loading("Generating coupon JPG...", { id: "dl-" + couponId });
     try {
-      const canvas = await html2canvas(node, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        onclone: (doc) => {
-          doc.querySelectorAll<HTMLElement>("*").forEach((el) => {
-            const cs = doc.defaultView?.getComputedStyle(el);
-            if (cs?.borderColor && cs.borderColor.includes("oklch")) {
-              el.style.borderColor = "transparent";
-            }
-            if (cs?.color && cs.color.includes("oklch")) {
-              el.style.color = "#1C1917";
-            }
-          });
-        },
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [160, 90] });
-      pdf.addImage(imgData, "PNG", 0, 0, 160, 90);
-      pdf.save(`Maharaji-Coupon-${code}.pdf`);
-      toast.success("Coupon downloaded!", { id: "dl-" + couponId });
+      await downloadCouponAsJpg(coupon);
+      toast.success("Coupon JPG downloaded!", { id: "dl-" + couponId });
     } catch (err) {
       console.error("Coupon download failed:", err);
       toast.error("Download failed. Please try again.", { id: "dl-" + couponId });
@@ -607,7 +824,7 @@ export const DashboardOffers: React.FC = () => {
                           <Share2 className="w-3.5 h-3.5" /> WhatsApp
                         </button>
                         <button
-                          onClick={() => handleDownloadCoupon(cop.id, cop.code)}
+                          onClick={() => handleDownloadCoupon(cop.id, { code: cop.code, discount: cop.discount, usedCount })}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gold-gradient text-charcoal-deep text-[11px] font-bold uppercase tracking-wider hover:brightness-105 transition-all shadow-md"
                         >
                           <Download className="w-3.5 h-3.5" /> Download
