@@ -37,6 +37,7 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
   const addOrder = useStore(state => state.addOrder);
   const addPendingItems = useStore(state => state.addPendingItems);
   const validateCoupon = useStore(state => state.validateCoupon);
+  const unlockTable = useStore(state => state.unlockTable);
 
   // Local UI states
   const [activeCategory, setActiveCategory] = useState<string>("all");
