@@ -326,7 +326,7 @@ export const DashboardOffers: React.FC = () => {
                               <Crown className="w-3.5 h-3.5 text-gold-shimmer" />
                               <span className="font-serif font-black text-[10px] tracking-[0.18em] uppercase text-gold-shimmer">Maharaji Kitchen</span>
                             </div>
-                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${enabled ? "bg-success/30 text-success-foreground border border-success/50" : "bg-mocha/40 text-cream-warm"}`}>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${enabled ? "bg-success/30 text-white border border-success/50" : "bg-mocha/40 text-cream-warm"}`}>
                               {enabled ? "ON" : "OFF"}
                             </span>
                           </div>
@@ -359,7 +359,7 @@ export const DashboardOffers: React.FC = () => {
                             </button>
                             <button
                               onClick={() => toggleCoupon(cop.id)}
-                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${enabled ? "bg-white/10 border-cream-warm/30 text-cream-ivory hover:bg-white/20" : "bg-success/30 border-success/50 text-success-foreground"}`}
+                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${enabled ? "bg-white/10 border-cream-warm/30 text-cream-ivory hover:bg-white/20" : "bg-success/30 border-success/50 text-white"}`}
                               title="Toggle ON/OFF"
                             >
                               <Power className="w-3 h-3" />
