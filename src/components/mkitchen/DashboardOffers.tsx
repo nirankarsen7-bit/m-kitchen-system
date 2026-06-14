@@ -16,6 +16,7 @@ export const DashboardOffers: React.FC = () => {
   const coupons = useStore(state => state.coupons);
   const addCoupon = useStore(state => state.addCoupon);
   const deleteCoupon = useStore(state => state.deleteCoupon);
+  const toggleCoupon = useStore(state => state.toggleCoupon);
   const couponSettings = useStore(state => state.couponSettings);
   const updateCouponSettings = useStore(state => state.updateCouponSettings);
 
