@@ -1,210 +1,176 @@
 import React from "react";
 import { motion } from "motion/react";
-import { MaharajiLogo } from "@/components/mkitchen/PremiumUI";
-import { ShieldCheck, User, ArrowRight } from "lucide-react";
+import { ShieldCheck, User, ArrowRight, Crown } from "lucide-react";
+import welcomeVideo from "@/assets/welcome-bg.mp4.asset.json";
 
 interface Props {
   onSelectRole: (role: "reception" | "admin") => void;
 }
 
 /**
- * Point 11: Premium welcome page shown before LoginScreen.
- * CSS-driven cinematic restaurant background — animated smoke, flickering flame,
- * tossing pan, floating 3D red chillies, and sparks.
+ * Premium homepage: looping video background + minimal logo/title (no card) +
+ * high-end animated buttons for Reception and Admin.
  */
 export const WelcomeScreen: React.FC<Props> = ({ onSelectRole }) => {
-  // pre-computed smoke / chili / spark positions for variety
-  const smokes = [
-    { left: "12%", delay: "0s" },
-    { left: "28%", delay: "1.4s" },
-    { left: "50%", delay: "0.6s" },
-    { left: "72%", delay: "2.2s" },
-    { left: "88%", delay: "3.4s" },
-  ];
-  const chilies = [
-    { left: "8%", top: "18%", delay: "0s", size: 36 },
-    { left: "82%", top: "22%", delay: "1.8s", size: 28 },
-    { left: "16%", top: "68%", delay: "0.8s", size: 32 },
-    { left: "78%", top: "62%", delay: "2.4s", size: 40 },
-    { left: "46%", top: "8%", delay: "3.1s", size: 26 },
-    { left: "58%", top: "78%", delay: "1.2s", size: 30 },
-  ];
-  const sparks = Array.from({ length: 14 }).map((_, i) => ({
-    left: `${30 + Math.random() * 40}%`,
-    bottom: `${10 + Math.random() * 12}%`,
-    delay: `${(i * 0.18).toFixed(2)}s`,
-    sx: `${(Math.random() - 0.5) * 120}px`,
-    sy: `-${60 + Math.random() * 80}px`,
-  }));
-
   return (
-    <div className="welcome-bg min-h-screen relative overflow-hidden font-sans text-cream-ivory select-none">
-      {/* Vignette */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)",
-      }} />
+    <div className="relative min-h-screen w-full overflow-hidden font-sans text-cream-ivory select-none">
+      {/* Background video */}
+      <video
+        className="absolute inset-0 w-full h-full object-cover"
+        src={welcomeVideo.url}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
+      {/* Cinematic overlays for legibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/75" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.65) 100%)" }}
+      />
 
-      {/* Rising smoke wisps */}
-      {smokes.map((s, i) => (
-        <span
-          key={i}
-          className="welcome-smoke"
-          style={{ left: s.left, animationDelay: s.delay }}
-        />
-      ))}
-
-      {/* Floating 3D red chillies */}
-      {chilies.map((c, i) => (
-        <div
-          key={i}
-          className="welcome-chili absolute pointer-events-none"
-          style={{ left: c.left, top: c.top, animationDelay: c.delay, width: c.size, height: c.size * 1.4 }}
-        >
-          <svg viewBox="0 0 40 56" width="100%" height="100%">
-            <defs>
-              <linearGradient id={`chili-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FF4D2E" />
-                <stop offset="55%" stopColor="#DC2626" />
-                <stop offset="100%" stopColor="#7A0F0F" />
-              </linearGradient>
-              <linearGradient id={`stem-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#3F6B22" />
-                <stop offset="100%" stopColor="#1F3D0F" />
-              </linearGradient>
-            </defs>
-            {/* stem */}
-            <path d="M18 2 Q22 6 20 12 L18 12 Q16 6 14 4 Z" fill={`url(#stem-${i})`} />
-            {/* chili body */}
-            <path d="M18 12 Q34 18 30 38 Q26 54 16 52 Q8 48 12 32 Q14 20 18 12 Z" fill={`url(#chili-${i})`} />
-            {/* highlight */}
-            <path d="M20 16 Q26 22 24 34 Q22 42 19 44" stroke="rgba(255,200,180,0.55)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
-      ))}
-
-      {/* Flickering kitchen flame anchor */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none" style={{ width: 140, height: 90 }}>
-        {/* flame */}
-        <svg viewBox="0 0 100 120" width="100%" height="100%" className="welcome-flame">
-          <defs>
-            <radialGradient id="flame-grad" cx="50%" cy="80%" r="60%">
-              <stop offset="0%" stopColor="#FFEAA0" />
-              <stop offset="40%" stopColor="#FFB347" />
-              <stop offset="80%" stopColor="#FF5A1F" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#7A0F0F" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <path d="M50 110 Q20 90 30 60 Q35 40 45 30 Q48 50 55 40 Q70 55 70 80 Q70 100 50 110 Z" fill="url(#flame-grad)" />
-        </svg>
-        {/* sparks */}
-        {sparks.map((s, i) => (
-          <span
-            key={i}
-            className="welcome-spark"
-            style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, ['--sx' as any]: s.sx, ['--sy' as any]: s.sy }}
-          />
-        ))}
-      </div>
-
-      {/* Pan toss (top-left subtle) */}
-      <div className="absolute left-1/2 top-[18%] welcome-pan opacity-80 pointer-events-none" style={{ transform: "translate(-50%, 0)" }}>
-        <svg width="120" height="60" viewBox="0 0 120 60">
-          <defs>
-            <linearGradient id="pan-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3A3A3A" />
-              <stop offset="100%" stopColor="#0F0F0F" />
-            </linearGradient>
-          </defs>
-          <ellipse cx="60" cy="20" rx="48" ry="14" fill="url(#pan-grad)" stroke="#1a1a1a" strokeWidth="1.5" />
-          <ellipse cx="60" cy="18" rx="44" ry="10" fill="#1a1a1a" />
-          <rect x="100" y="16" width="18" height="6" rx="3" fill="#4a2a18" />
-          {/* tossed bits */}
-          <circle cx="50" cy="6" r="2.5" fill="#FFB347" />
-          <circle cx="65" cy="2" r="2" fill="#DC2626" />
-          <circle cx="75" cy="9" r="2.2" fill="#F59E0B" />
-        </svg>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 py-12">
+      {/* Content */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-between px-6 py-10">
+        {/* Top: minimal logo + name, no card */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-center"
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="flex items-center gap-3"
         >
-          <div className="inline-block bg-white/95 rounded-3xl p-5 mb-4 shadow-2xl border-2 border-gold-rich/40 backdrop-blur-sm">
-            <MaharajiLogo size="lg" />
+          <div className="w-11 h-11 rounded-full bg-royal-gradient border border-gold-rich/70 flex items-center justify-center shadow-[0_0_20px_rgba(201,168,76,0.45)]">
+            <Crown className="w-5 h-5 text-gold-shimmer" />
           </div>
-
-          <motion.h1
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.7 }}
-            className="welcome-title font-serif text-5xl md:text-6xl font-black tracking-tight mt-2"
-          >
-            Welcome to Maharaji Kitchen
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.7 }}
-            className="text-cream-warm/90 font-accent italic text-base md:text-lg mt-3 tracking-[0.15em]"
-          >
-            Royal Taste, Royal Experience — Nagrakata
-          </motion.p>
+          <div className="leading-tight">
+            <h1 className="font-serif text-xl md:text-2xl font-black tracking-wide text-cream-ivory drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+              Maharaji Kitchen
+            </h1>
+            <p className="font-accent italic text-[10px] md:text-[11px] tracking-[0.25em] text-gold-shimmer/90 uppercase">
+              Royal Taste · Nagrakata
+            </p>
+          </div>
         </motion.div>
 
+        {/* Center spacer to push buttons to lower-middle */}
+        <div className="flex-1" />
+
+        {/* Hero tagline */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8 }}
+          className="text-center mb-10"
+        >
+          <h2 className="font-serif text-4xl md:text-6xl font-black tracking-tight text-cream-ivory drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]">
+            Welcome <span className="text-gold-shimmer">to the Palace</span>
+          </h2>
+          <p className="mt-3 text-cream-warm/90 font-accent italic text-sm md:text-base tracking-[0.18em]">
+            Select your portal to begin
+          </p>
+        </motion.div>
+
+        {/* Premium animated buttons */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.7 }}
-          className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl"
+          transition={{ delay: 0.6, duration: 0.7 }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl pb-12"
         >
-          {/* Reception card */}
-          <button
+          <PremiumButton
             onClick={() => onSelectRole("reception")}
-            className="card-elite group relative overflow-hidden p-6 rounded-3xl bg-white/95 border-2 border-gold-rich/40 hover:border-maroon-royal text-left shadow-2xl"
-          >
-            <div className="absolute top-0 inset-x-0 h-1.5 bg-royal-gradient" />
-            <div className="flex items-center justify-between">
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-cream-warm to-cream-ivory border border-gold-rich/20 group-hover:scale-110 transition-transform duration-300">
-                <User className="w-8 h-8 text-maroon-royal" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-mocha group-hover:translate-x-2 group-hover:text-maroon-royal transition-all" />
-            </div>
-            <h3 className="font-serif text-2xl font-black text-maroon-royal mt-4">Reception</h3>
-            <p className="text-xs text-mocha mt-1 leading-relaxed font-medium">Manage tables, live orders, billing & checkout.</p>
-            <div className="mt-3 inline-block px-3 py-1 rounded-full bg-cream-warm border border-gold-rich/30 text-[10px] uppercase tracking-widest font-bold text-mocha">
-              Front-desk portal
-            </div>
-          </button>
-
-          {/* Admin card */}
-          <button
+            icon={<User className="w-7 h-7" />}
+            title="Reception"
+            subtitle="Tables · Orders · Billing"
+            tone="cream"
+          />
+          <PremiumButton
             onClick={() => onSelectRole("admin")}
-            className="card-elite group relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#2D1810] to-[#1C1917] border-2 border-gold-rich/50 hover:border-gold-shimmer text-left shadow-2xl"
-          >
-            <div className="absolute top-0 inset-x-0 h-1.5 bg-gold-gradient" />
-            <div className="flex items-center justify-between">
-              <div className="p-4 rounded-2xl bg-white/5 border border-gold-rich/30 group-hover:scale-110 transition-transform duration-300">
-                <ShieldCheck className="w-8 h-8 text-gold-shimmer" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gold-shimmer group-hover:translate-x-2 transition-all" />
-            </div>
-            <h3 className="font-serif text-2xl font-black welcome-title mt-4">Admin</h3>
-            <p className="text-xs text-cream-warm/85 mt-1 leading-relaxed font-medium">Full controls — menu, stock, reports, settings.</p>
-            <div className="mt-3 inline-block px-3 py-1 rounded-full bg-white/5 border border-gold-rich/30 text-[10px] uppercase tracking-widest font-bold text-gold-shimmer">
-              Secured login required
-            </div>
-          </button>
+            icon={<ShieldCheck className="w-7 h-7" />}
+            title="Admin"
+            subtitle="Full restaurant control"
+            tone="gold"
+          />
         </motion.div>
 
-        <p className="absolute bottom-4 left-0 right-0 text-center text-[10px] uppercase tracking-[0.3em] text-cream-warm/50 font-mono">
+        <p className="text-center text-[10px] uppercase tracking-[0.35em] text-cream-warm/60 font-mono pb-2">
           Maharaji Kitchen · Nagrakata, NH31C · West Bengal
         </p>
       </div>
     </div>
+  );
+};
+
+const PremiumButton: React.FC<{
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  tone: "cream" | "gold";
+}> = ({ onClick, icon, title, subtitle, tone }) => {
+  const isGold = tone === "gold";
+  return (
+    <motion.button
+      onClick={onClick}
+      whileHover={{ scale: 1.035, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 300, damping: 18 }}
+      className={`group relative overflow-hidden rounded-2xl p-5 text-left border-2 backdrop-blur-md shadow-2xl ${
+        isGold
+          ? "bg-gradient-to-br from-[#2a1810]/85 to-[#0f0a06]/85 border-gold-rich/70 hover:border-gold-shimmer"
+          : "bg-white/10 border-cream-ivory/40 hover:border-cream-ivory/80"
+      }`}
+    >
+      {/* shimmer sweep */}
+      <span
+        className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-out pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%)",
+        }}
+      />
+      {/* top accent line */}
+      <span
+        className={`absolute top-0 inset-x-0 h-[2px] ${isGold ? "bg-gold-gradient" : "bg-cream-ivory/70"}`}
+      />
+      {/* glow */}
+      <span
+        className={`absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${
+          isGold ? "shadow-[0_0_40px_rgba(201,168,76,0.45)]" : "shadow-[0_0_40px_rgba(255,250,235,0.3)]"
+        }`}
+      />
+
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className={`p-3 rounded-xl border ${
+              isGold
+                ? "bg-white/5 border-gold-rich/40 text-gold-shimmer"
+                : "bg-white/15 border-cream-ivory/40 text-cream-ivory"
+            } group-hover:scale-110 transition-transform duration-300`}
+          >
+            {icon}
+          </div>
+          <div>
+            <div
+              className={`font-serif text-2xl font-black tracking-wide ${
+                isGold ? "text-gold-shimmer" : "text-cream-ivory"
+              } drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]`}
+            >
+              {title}
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-cream-warm/85 mt-0.5">
+              {subtitle}
+            </div>
+          </div>
+        </div>
+        <ArrowRight
+          className={`w-5 h-5 ${
+            isGold ? "text-gold-shimmer" : "text-cream-ivory"
+          } group-hover:translate-x-2 transition-transform duration-300`}
+        />
+      </div>
+    </motion.button>
   );
 };
