@@ -444,10 +444,21 @@ export const DashboardStock: React.FC = () => {
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
 
+                      const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
+
                       return (
-                        <tr key={s.id} className="hover:bg-[#FAF7F2]/40 transition-colors">
+                        <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
                           <td className="p-3 text-mocha">{new Date(s.date).toLocaleDateString()}</td>
-                          <td className="p-3 font-semibold text-espresso">{s.item_name}</td>
+                          <td className="p-3 font-semibold text-espresso">
+                            <span className="inline-flex items-center gap-1.5">
+                              {s.item_name}
+                              {isLow && (
+                                <span className="text-[8px] font-black uppercase tracking-wider bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
+                                  Low
+                                </span>
+                              )}
+                            </span>
+                          </td>
                           <td className="p-3 font-mono font-bold text-espresso">{s.quantity} {s.unit}</td>
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
