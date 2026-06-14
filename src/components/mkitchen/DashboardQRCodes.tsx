@@ -492,7 +492,7 @@ export const DashboardQRCodes: React.FC = () => {
         isFirst = false;
 
         // Generate QR for this table
-        const destUrl = `${window.location.protocol}//${window.location.host}/menu?table=${t}`;
+        const destUrl = buildMenuUrl(t);
         const qrDataUrl = await QRCode.toDataURL(destUrl, { width: 600, margin: 1, color: { dark: "#1C1917", light: "#FFFFFF" } });
 
         // Background
