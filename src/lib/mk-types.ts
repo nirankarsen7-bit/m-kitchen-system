@@ -120,6 +120,10 @@ export interface Coupon {
   valid_from: string;
   valid_to: string;
   status: CouponStatus;
+  // Special Discount Coupon (admin) — flat reusable, on/off toggle, tracks bills used
+  is_special_discount?: boolean;
+  is_enabled?: boolean;
+  used_bill_ids?: string[];
 }
 
 export interface StockPurchase {
