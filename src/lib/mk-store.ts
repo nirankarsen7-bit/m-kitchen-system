@@ -895,6 +895,14 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("coupons", updated);
     },
 
+    toggleCoupon: (id) => {
+      const updated = get().coupons.map(c => c.id === id ? { ...c, is_enabled: !(c.is_enabled ?? true) } : c);
+      set({ coupons: updated });
+      saveToStorage("coupons", updated);
+      const c = updated.find(x => x.id === id);
+      get().logAudit("COUPON_TOGGLED", `Coupon ${c?.code} set to ${(c?.is_enabled ?? true) ? "ON" : "OFF"}.`);
+    },
+
     // Stock
     addStockEntry: (entry) => {
       const total = entry.quantity * entry.unit_price;
