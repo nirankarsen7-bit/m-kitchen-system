@@ -761,6 +761,12 @@ export const useStore = create<AppState>((set, get) => {
       // Update completed orders
       const updatedOrders = get().orders.map(o => o.id === activeOrder.id ? { ...o, status: "completed" as const, updated_at: new Date().toISOString() } : o);
 
+      const updatedOrderItems = get().orderItems.map(item =>
+        item.order_id === activeOrder.id && item.status === OrderItemStatus.PENDING_APPROVAL
+          ? { ...item, status: OrderItemStatus.REJECTED }
+          : item
+      );
+
       // Lock table on close
       const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
 
@@ -788,12 +794,14 @@ export const useStore = create<AppState>((set, get) => {
       set({ 
         bills: updatedBills, 
         orders: updatedOrders,
+        orderItems: updatedOrderItems,
         tables: updatedTables,
         coupons: updatedCouponsList 
       });
 
       saveToStorage("bills", updatedBills);
       saveToStorage("orders", updatedOrders);
+      saveToStorage("order_items", updatedOrderItems);
       saveToStorage("tables", updatedTables);
       saveToStorage("coupons", updatedCouponsList);
 
