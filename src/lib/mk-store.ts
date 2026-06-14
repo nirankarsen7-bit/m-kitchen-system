@@ -835,6 +835,9 @@ export const useStore = create<AppState>((set, get) => {
       // Lock table on close
       const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
 
+      // Apply deferred special-discount-coupon usage tracking now that billId exists
+      if (pendingCouponUpdate) pendingCouponUpdate(billId);
+
       // Auto generate coupon if bill >= configured min purchase (F6)
       const couponCfg = get().couponSettings;
       let updatedCouponsList = [...get().coupons];
