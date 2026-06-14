@@ -26,12 +26,10 @@ export const DashboardOffers: React.FC = () => {
   const [animStyle, setAnimStyle] = useState<"pulse" | "shimmer" | "glow">("pulse");
   const [isActive, setIsActive] = useState(true);
 
-  // Coupon form states
+  // Special Discount Coupon form states
   const [isCoupModalOpen, setIsCoupModalOpen] = useState(false);
   const [coupCode, setCoupCode] = useState("");
-  const [coupType, setCoupType] = useState<"percentage" | "flat">("flat");
   const [coupValue, setCoupValue] = useState("");
-  const [coupMinBuy, setCoupMinBuy] = useState("");
 
   // Coupon settings form
   const [minPurchaseForCoupon, setMinPurchaseForCoupon] = useState(couponSettings.min_purchase_for_coupon.toString());
