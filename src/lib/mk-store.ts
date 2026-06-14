@@ -262,6 +262,7 @@ interface AppState {
   coupons: Coupon[];
   addCoupon: (coupon: Omit<Coupon, "id" | "status">) => void;
   deleteCoupon: (id: string) => void;
+  toggleCoupon: (id: string) => void;
 
   // Stock tracking
   stockPurchases: StockPurchase[];
@@ -628,9 +629,21 @@ export const useStore = create<AppState>((set, get) => {
     // Verify & Validate Coupon
     validateCoupon: (code, totalAmount, currentBillId) => {
       const coupon = get().coupons.find(c => c.code.toUpperCase() === code.toUpperCase());
-      
+
       if (!coupon) {
         return { valid: false, discountAmount: 0, error: "Invalid coupon code." };
+      }
+
+      // Special Discount Coupon — admin-managed, flat, reusable across bills, per-bill once.
+      if (coupon.is_special_discount) {
+        if (coupon.is_enabled === false) {
+          return { valid: false, discountAmount: 0, error: "This coupon is currently turned OFF." };
+        }
+        if (currentBillId && (coupon.used_bill_ids || []).includes(currentBillId)) {
+          return { valid: false, discountAmount: 0, error: "This coupon has already been used for this bill." };
+        }
+        const flat = Math.min(coupon.discount, totalAmount);
+        return { valid: true, discountAmount: flat };
       }
 
       if (coupon.status !== CouponStatus.ACTIVE) {
@@ -646,12 +659,10 @@ export const useStore = create<AppState>((set, get) => {
         return { valid: false, discountAmount: 0, error: `Minimum purchase of ₹${coupon.min_purchase} required.` };
       }
 
-      // Check if trying to use on the coupon's generating bill (cannot use on source bill)
       if (currentBillId && coupon.linked_bill_id === currentBillId) {
         return { valid: false, discountAmount: 0, error: "Coupon cannot be applied to its generator bill." };
       }
 
-      // Calculate discount
       let discountAmount = 0;
       if (coupon.discount_type === "percentage") {
         discountAmount = (coupon.discount / 100) * totalAmount;
@@ -756,18 +767,33 @@ export const useStore = create<AppState>((set, get) => {
       
       let discount = 0;
       let applied_code = null;
+      let pendingCouponUpdate: ((billId: string) => void) | null = null;
       if (coupon_code) {
         const validation = get().validateCoupon(coupon_code, subtotal);
         if (validation.valid) {
           discount = validation.discountAmount;
           applied_code = coupon_code;
-          
-          // Set coupon status to USED
-          const updatedCoupons = get().coupons.map(c => 
-            c.code.toUpperCase() === coupon_code.toUpperCase() ? { ...c, status: CouponStatus.USED } : c
-          );
-          set({ coupons: updatedCoupons });
-          saveToStorage("coupons", updatedCoupons);
+
+          const couponObj = get().coupons.find(c => c.code.toUpperCase() === coupon_code.toUpperCase());
+          if (couponObj?.is_special_discount) {
+            // Defer until billId is known — track per-bill usage, do not mark USED.
+            pendingCouponUpdate = (billId: string) => {
+              const updatedCoupons = get().coupons.map(c =>
+                c.id === couponObj.id
+                  ? { ...c, used_bill_ids: [...(c.used_bill_ids || []), billId] }
+                  : c
+              );
+              set({ coupons: updatedCoupons });
+              saveToStorage("coupons", updatedCoupons);
+            };
+          } else {
+            // Set coupon status to USED (legacy single-use coupons)
+            const updatedCoupons = get().coupons.map(c =>
+              c.code.toUpperCase() === coupon_code.toUpperCase() ? { ...c, status: CouponStatus.USED } : c
+            );
+            set({ coupons: updatedCoupons });
+            saveToStorage("coupons", updatedCoupons);
+          }
         }
       }
 
@@ -808,6 +834,9 @@ export const useStore = create<AppState>((set, get) => {
 
       // Lock table on close
       const updatedTables = get().tables.map(t => t.table_number === table_number ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
+
+      // Apply deferred special-discount-coupon usage tracking now that billId exists
+      if (pendingCouponUpdate) pendingCouponUpdate(billId);
 
       // Auto generate coupon if bill >= configured min purchase (F6)
       const couponCfg = get().couponSettings;
@@ -892,6 +921,14 @@ export const useStore = create<AppState>((set, get) => {
       const updated = get().coupons.filter(c => c.id !== id);
       set({ coupons: updated });
       saveToStorage("coupons", updated);
+    },
+
+    toggleCoupon: (id) => {
+      const updated = get().coupons.map(c => c.id === id ? { ...c, is_enabled: !(c.is_enabled ?? true) } : c);
+      set({ coupons: updated });
+      saveToStorage("coupons", updated);
+      const c = updated.find(x => x.id === id);
+      get().logAudit("COUPON_TOGGLED", `Coupon ${c?.code} set to ${(c?.is_enabled ?? true) ? "ON" : "OFF"}.`);
     },
 
     // Stock
