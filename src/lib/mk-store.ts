@@ -285,6 +285,7 @@ export const useStore = create<AppState>((set, get) => {
   const stockPurchases = getLocalStorage<StockPurchase[]>("stock_purchases", []);
   const auditLogs = getLocalStorage<AuditLog[]>("audit_logs", []);
   const materialUsages = getLocalStorage<MaterialUsage[]>("material_usages", []);
+  const menuRecipes = getLocalStorage<Record<string, string>>("menu_recipes", {});
   const supplierPayments = getLocalStorage<SupplierPayment[]>("supplier_payments", []);
   const couponSettings = getLocalStorage<CouponSettings>("coupon_settings", DEFAULT_COUPON_SETTINGS);
   const system = getLocalStorage<typeof DEFAULT_SYSTEM_SETTINGS>("system", DEFAULT_SYSTEM_SETTINGS);
