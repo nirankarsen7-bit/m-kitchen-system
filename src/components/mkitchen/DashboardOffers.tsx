@@ -69,28 +69,43 @@ export const DashboardOffers: React.FC = () => {
   const handleSaveCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(coupValue);
-    const minVal = parseFloat(coupMinBuy);
 
-    if (!coupCode.trim() || isNaN(val) || isNaN(minVal)) {
-      toast.error("Please check coupon entry constraints!");
+    if (!coupCode.trim() || isNaN(val) || val <= 0) {
+      toast.error("Please enter a valid code and discount amount!");
       return;
     }
 
     addCoupon({
       code: coupCode.trim().toUpperCase(),
-      discount_type: coupType,
+      discount_type: "flat",
       discount: val,
-      min_purchase: minVal,
+      min_purchase: 0,
       linked_bill_id: null,
       valid_from: new Date().toISOString(),
-      valid_to: new Date(Date.now() + 86400000 * 30).toISOString()
+      valid_to: new Date(Date.now() + 86400000 * 365).toISOString(),
+      is_special_discount: true,
+      is_enabled: true,
+      used_bill_ids: [],
     });
 
     setCoupCode("");
     setCoupValue("");
-    setCoupMinBuy("");
     setIsCoupModalOpen(false);
-    toast.success("New coupon promotion created successfully!");
+    toast.success("Special Discount Coupon created!");
+  };
+
+  const handleShareCoupon = async (code: string, discount: number) => {
+    const text = `🎉 Maharaji Kitchen — Special Discount Coupon\n\nCode: ${code}\nFlat ₹${discount} OFF on your bill!\n\nValid at Maharaji Kitchen. Show this coupon at the counter.`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Maharaji Kitchen Coupon", text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        toast.success("Coupon copied to clipboard — paste in WhatsApp / any app!");
+      }
+    } catch (err) {
+      // user cancelled or no permission
+    }
   };
 
   return (
