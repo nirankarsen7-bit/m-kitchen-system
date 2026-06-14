@@ -53,6 +53,7 @@ const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownload
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
+  ctx.save();
   roundedRect(ctx, 32, 32, width - 64, height - 64, 38);
   ctx.clip();
 
@@ -238,12 +239,16 @@ const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownload
   ctx.stroke();
 
   const safeCode = code.replace(/[^a-z0-9_-]/gi, "_");
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.96));
+  const href = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/jpeg", 0.96);
   const link = document.createElement("a");
-  link.href = canvas.toDataURL("image/jpeg", 0.96);
+  link.href = href;
   link.download = `Maharaji-Coupon-${safeCode}.jpg`;
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  if (blob) setTimeout(() => URL.revokeObjectURL(href), 1000);
 };
 
 // ============================
