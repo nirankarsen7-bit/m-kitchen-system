@@ -14,6 +14,7 @@ import { DashboardActiveOrders } from "@/components/mkitchen/DashboardActiveOrde
 import { DashboardMenu } from "@/components/mkitchen/DashboardMenu";
 import { DashboardOffers } from "@/components/mkitchen/DashboardOffers";
 import { DashboardStock } from "@/components/mkitchen/DashboardStock";
+import { DashboardSuppliers } from "@/components/mkitchen/DashboardSuppliers";
 import { DashboardBills } from "@/components/mkitchen/DashboardBills";
 import { DashboardReports } from "@/components/mkitchen/DashboardReports";
 import { DashboardQRCodes } from "@/components/mkitchen/DashboardQRCodes";
