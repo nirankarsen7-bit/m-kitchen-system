@@ -97,27 +97,28 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
           </button>
         </div>
 
-        {/* Premium animated role badge */}
+        {/* Premium animated role badge — high-contrast, always visible */}
         {!sidebarCollapsed && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
+            transition={{ delay: 0.1, duration: 0.55, ease: "easeOut" }}
             className="px-3 pt-3"
           >
-            <div className="bg-royal-gradient text-white px-3 py-2 rounded-xl border border-gold-rich/30 shadow-lg flex items-center gap-2 overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-shimmer/20 to-transparent -translate-x-full animate-shimmer-sweep" />
-              <Crown className="w-3.5 h-3.5 text-gold-shimmer animate-pulse relative z-10" />
-              <span className="font-serif font-bold text-[10px] uppercase tracking-[0.18em] relative z-10">
+            <div className="relative bg-gradient-to-r from-gold-rich via-gold-shimmer to-gold-rich text-charcoal-deep px-3 py-2.5 rounded-xl border-2 border-gold-rich shadow-[0_0_18px_rgba(245,220,138,0.45)] flex items-center gap-2 overflow-hidden animate-role-pulse">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer-sweep" />
+              <Crown className="w-4 h-4 text-maroon-deep relative z-10 drop-shadow" />
+              <span className="font-serif font-black text-[11px] uppercase tracking-[0.22em] relative z-10 text-maroon-deep">
                 {currentUser.role} Portal
               </span>
+              <span className="ml-auto relative z-10 w-1.5 h-1.5 rounded-full bg-success animate-ping" />
             </div>
           </motion.div>
         )}
 
 
-        {/* Links listing - strict 1-10 listing using passed tab state */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+        {/* Premium animated sidebar buttons */}
+        <nav className="flex-1 py-4 px-2 space-y-1.5 overflow-y-auto">
           {sidebarItems.map((item, idx) => {
             const isActive = activeTab === item.path;
 
@@ -125,23 +126,26 @@ export const StaffShell: React.FC<ShellProps> = ({ children, activeTab, setActiv
               <motion.button
                 key={idx}
                 onClick={() => setActiveTab(item.path)}
-                whileHover={{ x: 4 }}
+                whileHover={{ x: 3, scale: 1.01 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 380, damping: 22 }}
-                className={`w-full text-left flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-300 group relative cursor-pointer ${
+                className={`w-full text-left flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-[11px] font-semibold uppercase tracking-wider transition-all duration-300 group relative cursor-pointer overflow-hidden ${
                   isActive
-                    ? "bg-gradient-to-r from-maroon-deep via-maroon-royal to-maroon-royal text-white shadow-lg shadow-maroon-deep/40 font-bold"
-                    : "text-cream-warm/80 hover:bg-white/8 hover:text-white"
+                    ? "bg-gradient-to-r from-maroon-deep via-maroon-royal to-maroon-deep text-white shadow-[0_8px_24px_-6px_rgba(123,30,43,0.7)] font-bold border border-gold-rich/40"
+                    : "text-cream-warm/85 border border-transparent hover:border-gold-rich/20 hover:bg-gradient-to-r hover:from-white/[0.08] hover:to-white/[0.02] hover:text-white hover:shadow-[0_4px_14px_-4px_rgba(245,220,138,0.25)]"
                 }`}
               >
-                {/* Animated glowing gold accent bar on active */}
+                {/* Hover sheen sweep */}
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-gold-shimmer/15 to-transparent pointer-events-none" />
+
+                {/* Active glowing gold accent bar */}
                 {isActive && (
                   <motion.span
                     layoutId="active-side-bar"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-1 rounded-r bg-gold-gradient shadow-[0_0_10px_rgba(245,220,138,0.7)]"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r bg-gold-gradient shadow-[0_0_12px_rgba(245,220,138,0.85)]"
                   />
                 )}
-                <div className={`transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110 ${isActive ? "text-gold-shimmer drop-shadow-[0_0_4px_rgba(245,220,138,0.7)]" : ""}`}>
+                <div className={`transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 relative z-10 ${isActive ? "text-gold-shimmer drop-shadow-[0_0_6px_rgba(245,220,138,0.85)]" : "group-hover:text-gold-shimmer"}`}>
                   {item.icon}
                 </div>
                 {!sidebarCollapsed && <span className="relative z-10">{item.name}</span>}
