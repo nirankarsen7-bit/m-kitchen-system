@@ -219,7 +219,7 @@ interface AppState {
   validateCoupon: (code: string, totalAmount: number, currentBillId?: string) => { valid: boolean; discountAmount: number; error?: string };
   editBillItems: (billId: string, itemChanges: { menu_item_id: string; quantity: number; price: number }[], adminCode: string) => boolean;
   editActiveOrderItems: (orderId: string, itemChanges: { menu_item_id: string; quantity: number; price: number }[], adminCode: string) => boolean;
-  checkoutBill: (table_number: number, coupon_code?: string) => void;
+  checkoutBill: (table_number: number, coupon_code?: string) => boolean;
 
   // Promotional rules
   todaysOffers: TodaysOffer[];
@@ -366,28 +366,28 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     unlockTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
-      get().logAudit("TABLE_UNLOCKED", `Caretaker unlocked Table ${id.replace("table_", "")}.`);
+      get().logAudit("TABLE_OPENED", `Reception opened Table ${id.replace("table_", "")} for QR menu access.`);
     },
 
     lockTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
       get().logAudit("TABLE_LOCKED", `Caretaker locked Table ${id.replace("table_", "")}.`);
     },
 
     openTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.ACTIVE } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.OPEN, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
-      get().logAudit("TABLE_OPENED", `Customer active at Table ${id.replace("table_", "")}.`);
+      get().logAudit("TABLE_OPENED", `Reception opened Table ${id.replace("table_", "")} for QR menu access.`);
     },
 
     closeTable: (id) => {
-      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED } : t);
+      const tables = get().tables.map(t => t.id === id ? { ...t, status: TableStatus.LOCKED, updated_at: new Date().toISOString() } : t);
       set({ tables });
       saveToStorage("tables", tables);
       get().logAudit("TABLE_CLOSED", `Settled down. Table ${id.replace("table_", "")} is now Locked default.`);
