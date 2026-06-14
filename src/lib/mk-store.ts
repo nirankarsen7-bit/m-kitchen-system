@@ -243,6 +243,11 @@ interface AppState {
   deleteMaterialUsage: (id: string) => void;
   getLowStockMaterials: () => { material: string; currentStock: number; estimatedUsage: number; totalPurchased: number; percentConsumed: number; unit: string }[];
 
+  // Knowledge Base: per-menu-item raw recipe text (F11 — long text)
+  menuRecipes: Record<string, string>;
+  setMenuRecipe: (menuItemId: string, recipeText: string) => void;
+  deleteMenuRecipe: (menuItemId: string) => void;
+
   // Supplier payments (F16)
   supplierPayments: SupplierPayment[];
   addSupplierPayment: (payment: Omit<SupplierPayment, "id" | "created_at">) => void;
