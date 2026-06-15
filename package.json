@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler deploy --config dist/server/wrangler.json",
+    "deploy": "vite build && wrangler deploy --config $(node -e \"const fs=require('fs');const paths=['dist/server/wrangler.json','.output/server/wrangler.json'];const found=paths.find((p)=>fs.existsSync(p));if(!found){console.error('No generated Wrangler config found');process.exit(1)}process.stdout.write(found)\")",
     "cf-typegen": "wrangler types",
     "lint": "eslint .",
     "format": "prettier --write ."
