@@ -12,6 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Force the Cloudflare Worker build outside Lovable's preview sandbox as well.
+  // Without this, external CI/CD builds can skip the Worker output generation.
+  nitro: { preset: "cloudflare-module" },
   // Empty plugins array so Cloudflare's wrangler auto-config detection passes.
   // The real plugins are injected by @lovable.dev/vite-tanstack-config.
   plugins: [],

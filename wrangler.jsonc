@@ -3,6 +3,6 @@
   "name": "m-kitchen-system-9b09d858",
   "compatibility_date": "2026-06-14",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server.ts",
   "observability": { "enabled": true }
 }
