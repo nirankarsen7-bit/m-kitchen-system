@@ -935,11 +935,12 @@ export const DashboardOffers: React.FC = () => {
             <h3 className="font-serif text-lg font-bold text-maroon-royal mb-1 flex items-center gap-2">
               <Crown className="w-5 h-5 text-gold-rich" /> Create Special Discount Coupon
             </h3>
-            <p className="text-[11px] text-mocha mb-4">Flat discount, no minimum purchase. Reusable across bills (once per bill).</p>
+            <p className="text-[11px] text-mocha mb-4">Flat discount coupon. Set a minimum bill amount (0 = no minimum). Reusable across bills (once per bill).</p>
 
             <form onSubmit={handleSaveCoupon} className="space-y-4">
               <FormInput label="Coupon Code" value={coupCode} onChange={(e) => setCoupCode(e.target.value.toUpperCase())} placeholder="eg. MAHA200" required />
               <FormInput label="Flat Discount Amount (₹)" type="number" value={coupValue} onChange={(e) => setCoupValue(e.target.value)} placeholder="eg. 100, 200, 500" required />
+              <FormInput label="Minimum Purchase Required (₹) — 0 for no minimum" type="number" value={coupMinPurchase} onChange={(e) => setCoupMinPurchase(e.target.value)} placeholder="eg. 0, 500, 1000" />
 
               <div className="flex gap-2 pt-2 justify-end">
                 <Button variant="ghost" size="sm" type="button" onClick={() => setIsCoupModalOpen(false)}>Discard</Button>
