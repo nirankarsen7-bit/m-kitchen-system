@@ -12,18 +12,7 @@ import { jsPDF } from "jspdf";
 // html2canvas removed — PDF now uses structured jsPDF (avoids unsupported oklch CSS color crash).
 import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "@/lib/mk-types";
 
-// Dynamic Pseudo-random generator for high-fidelity deterministic fallback seed history
-const createRng = (seedStr: string) => {
-  let h = 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    h = Math.imul(31, h) + seedStr.charCodeAt(i) | 0;
-  }
-  return () => {
-    h = Math.imul(h ^ h >>> 16, 2246822507);
-    h = Math.imul(h ^ h >>> 13, 3266489909);
-    return ((h ^= h >>> 16) >>> 0) / 4294967296;
-  };
-};
+// Reports show strictly real (recorded) data. No synthetic / random history.
 
 export const DashboardReports: React.FC = () => {
   const storeBills = useStore(state => state.bills);
