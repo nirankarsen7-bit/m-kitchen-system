@@ -2,13 +2,14 @@ import React, { useState, useRef } from "react";
 import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight } from "lucide-react";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil } from "lucide-react";
 import { UserRole } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
   // Zustand States
   const stockPurchases = useStore(state => state.stockPurchases);
   const addStockEntry = useStore(state => state.addStockEntry);
+  const editStockEntry = useStore(state => state.editStockEntry);
   const deleteStockEntry = useStore(state => state.deleteStockEntry);
   const supplierPayments = useStore(state => state.supplierPayments);
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
