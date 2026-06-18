@@ -877,6 +877,58 @@ export const DashboardStock: React.FC = () => {
         </div>
       )}
 
+      {/* Admin-only: Edit Purchase Modal */}
+      {isAdmin && editStockId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold text-maroon-royal flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-gold-rich" /> Edit Purchase Entry
+              </h3>
+              <button onClick={() => setEditStockId(null)} className="p-1 hover:bg-cream-warm rounded">
+                <X className="w-4 h-4 text-mocha" />
+              </button>
+            </div>
+
+            <FormInput label="Item / Material Name" value={editItemName} onChange={(e) => setEditItemName(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormInput label="Quantity" type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Unit</label>
+                <select
+                  value={editUnit}
+                  onChange={(e) => setEditUnit(e.target.value)}
+                  className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
+                >
+                  <option value="kg">kg</option>
+                  <option value="g">g</option>
+                  <option value="litres">litres</option>
+                  <option value="ml">ml</option>
+                  <option value="units">units</option>
+                  <option value="packs">packs</option>
+                  <option value="cyl">cyl</option>
+                </select>
+              </div>
+            </div>
+            <FormInput label="Unit Price (₹)" type="number" value={editUnitPrice} onChange={(e) => setEditUnitPrice(e.target.value)} />
+            <FormInput label="Supplier" value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)} />
+            <FormInput label="Notes (optional)" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+
+            <div className="text-[11px] text-mocha bg-cream-warm/40 rounded-lg px-3 py-2">
+              New gross total: <span className="font-mono font-bold text-maroon-royal">₹{((parseFloat(editQty) || 0) * (parseFloat(editUnitPrice) || 0)).toFixed(2)}</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setEditStockId(null)} className="flex-1">Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleSaveEdit} className="flex-1 font-bold">
+                <span>Save Changes</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+
