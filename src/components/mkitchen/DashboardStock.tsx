@@ -162,6 +162,48 @@ export const DashboardStock: React.FC = () => {
     setShowPaymentModal(true);
   };
 
+  // Admin: open edit modal pre-filled with the selected purchase entry.
+  const openEditModal = (stockId: string) => {
+    const s = stockPurchases.find(x => x.id === stockId);
+    if (!s) return;
+    setEditStockId(stockId);
+    setEditItemName(s.item_name);
+    setEditQty(String(s.quantity));
+    setEditUnit(s.unit);
+    setEditUnitPrice(String(s.unit_price));
+    setEditSupplier(s.supplier || "");
+    setEditNotes(s.notes || "");
+  };
+
+  const handleSaveEdit = () => {
+    if (!editStockId) return;
+    const qtyVal = parseFloat(editQty);
+    const priceVal = parseFloat(editUnitPrice);
+    if (!editItemName.trim() || isNaN(qtyVal) || isNaN(priceVal) || qtyVal <= 0 || priceVal < 0) {
+      toast.error("Please enter a valid name, quantity and unit price.");
+      return;
+    }
+    editStockEntry(editStockId, {
+      item_name: editItemName.trim(),
+      quantity: qtyVal,
+      unit: editUnit,
+      unit_price: priceVal,
+      supplier: editSupplier,
+      notes: editNotes || undefined,
+    });
+    toast.success("Purchase entry updated.");
+    setEditStockId(null);
+  };
+
+  const handleDeleteStock = (stockId: string) => {
+    const s = stockPurchases.find(x => x.id === stockId);
+    if (!s) return;
+    if (!confirm(`Delete purchase entry "${s.item_name}" (₹${s.total.toFixed(2)})? This cannot be undone.`)) return;
+    deleteStockEntry(stockId);
+    toast.success("Purchase entry deleted.");
+  };
+
+
   // Autocomplete hints from previous distinct items
   const uniqueItemSuggestions = Array.from(new Set(stockPurchases.map(s => s.item_name)));
 
