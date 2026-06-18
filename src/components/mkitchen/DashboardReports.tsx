@@ -12,18 +12,7 @@ import { jsPDF } from "jspdf";
 // html2canvas removed — PDF now uses structured jsPDF (avoids unsupported oklch CSS color crash).
 import { TableStatus, OrderItemStatus, CouponStatus, MenuItem, Bill, StockPurchase } from "@/lib/mk-types";
 
-// Dynamic Pseudo-random generator for high-fidelity deterministic fallback seed history
-const createRng = (seedStr: string) => {
-  let h = 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    h = Math.imul(31, h) + seedStr.charCodeAt(i) | 0;
-  }
-  return () => {
-    h = Math.imul(h ^ h >>> 16, 2246822507);
-    h = Math.imul(h ^ h >>> 13, 3266489909);
-    return ((h ^= h >>> 16) >>> 0) / 4294967296;
-  };
-};
+// Reports show strictly real (recorded) data. No synthetic / random history.
 
 export const DashboardReports: React.FC = () => {
   const storeBills = useStore(state => state.bills);
@@ -34,6 +23,7 @@ export const DashboardReports: React.FC = () => {
   const storeOrders = useStore(state => state.orders);
   const storeOrderItems = useStore(state => state.orderItems);
   const supplierPayments = useStore(state => state.supplierPayments);
+  const couponSettings = useStore(state => state.couponSettings);
 
   // States
   const [reportType, setReportType] = useState<"Daily" | "Weekly" | "Monthly" | "Yearly" | "Custom">("Daily");
@@ -62,13 +52,13 @@ export const DashboardReports: React.FC = () => {
   const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
   const [isExportingCSV, setIsExportingCSV] = useState<boolean>(false);
 
-  // High-fidelity fully-deterministic dataset constructor
+  // Strict real-data dataset constructor — no synthetic / random seed history.
+  // This is a financial section: only actual checkout bills and recorded
+  // stock purchases inside the selected window are included.
   const parsedData = useMemo(() => {
-    // Determine the exact timeframe
     let startMs = 0;
     let endMs = 0;
-    const refDate = new Date(selectedDate);
-    
+
     if (reportType === "Daily") {
       const [year, month, day] = selectedDate.split("-").map(Number);
       startMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
@@ -104,146 +94,27 @@ export const DashboardReports: React.FC = () => {
       endMs = Date.UTC(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
     }
 
-    // 1. Gather all raw bills & Purchases from store
-    const activeStoreBills = storeBills.filter(b => {
-      const t = new Date(b.created_at).getTime();
-      return t >= startMs && t <= endMs;
-    });
+    const finalBills = storeBills
+      .filter(b => {
+        const t = new Date(b.created_at).getTime();
+        return t >= startMs && t <= endMs;
+      })
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-    const activeStorePurchases = storePurchases.filter(s => {
-      const t = new Date(s.date).getTime();
-      return t >= startMs && t <= endMs;
-    });
-
-    // 2. Synthesize seed history if ledger is thin/shallow to maintain the "perfect presentation"
-    const totalActualBills = storeBills.length;
-    let seedBills: Bill[] = [];
-    let seedPurchases: StockPurchase[] = [];
-
-    // Always generate deterministic simulation curves based on seed string parameters
-    const rng = createRng(`maharaji-finances-${reportType}-${selectedDate}`);
-    const daysInterval = Math.ceil((endMs - startMs) / 86400000);
-    
-    // Generate realistic historical daily curves
-    for (let i = 0; i < daysInterval; i++) {
-      const dayMs = startMs + i * 86400000;
-      const dayIso = new Date(dayMs).toISOString().slice(0, 10);
-      
-      // Determine day multipliers (Weekends are busiest, e.g. Fri/Sat/Sun have higher coefficients)
-      const dayOfWeek = new Date(dayMs).getDay(); // 0 Sunday, 6 Saturday
-      const coefficient = (dayOfWeek === 0 || dayOfWeek === 6 || dayOfWeek === 5) ? 1.45 : 0.85;
-      
-      // Daily bills count: usually between 8 and 18 tickets
-      const ticketsCount = Math.floor(8 + rng() * 12 * coefficient);
-      
-      for (let t = 0; t < ticketsCount; t++) {
-        const ticketRng = rng();
-        // Base checkout prices structured symmetrically mimicking actual menu
-        let subtotal = 150 + Math.floor(ticketRng * 1600);
-        let discount = 0;
-        let couponCode: string | null = null;
-        
-        if (subtotal > 1000 && ticketRng > 0.4) {
-          discount = Math.floor(subtotal * 0.15);
-          couponCode = ticketRng > 0.75 ? "ROYALFEAST" : "WELCOME100";
-        } else if (subtotal > 500 && ticketRng > 0.7) {
-          discount = 100;
-          couponCode = "WELCOME100";
-        }
-        
-        const total = Math.max(50, subtotal - discount);
-        const seqNum = String(t + 1).padStart(4, "0");
-        const dateString = dayIso.replace(/-/g, "");
-        const billNumber = `MK-${dateString}-${seqNum}`;
-        
-        const table_number = Math.floor(1 + ticketRng * 20);
-        // Space transaction across standard dining hours (11:00 AM - 11:00 PM)
-        const hour = Math.floor(11 + ticketRng * 12);
-        const minute = Math.floor(ticketRng * 60);
-        const timestamp = `${dayIso}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00.000Z`;
-        
-        seedBills.push({
-          id: `seed-bill-${dayIso}-${t}`,
-          bill_number: billNumber,
-          table_number,
-          subtotal,
-          coupon_code: couponCode,
-          discount,
-          total,
-          created_at: timestamp,
-          closed_at: timestamp
-        });
-      }
-
-      // Daily stock purchase materials
-      if (i % 2 === 0 || rng() > 0.6) {
-        const ingredients = [
-          { name: "Premium Paneer", unit: "kg", price: 380, count: 5 + Math.floor(rng() * 10), supplier: "Doon Farms Dairy" },
-          { name: "Aged Basmati Rice", unit: "kg", price: 160, count: 10 + Math.floor(rng() * 15), supplier: "Siliguri Grain Corp" },
-          { name: "Pure Saffron Stigmas", unit: "g", price: 320, count: 2 + Math.floor(rng() * 5), supplier: "Kashmir Spices Ltd" },
-          { name: "Amul Fresh Butter", unit: "packs", price: 275, count: 8 + Math.floor(rng() * 12), supplier: "NH31 Dairy Agency" },
-          { name: "LPG Gas Cylinder 19k", unit: "cyl", price: 1850, count: 1 + Math.floor(rng() * 2), supplier: "Indane Commercial" }
-        ];
-
-        const selectedIng = ingredients[Math.floor(rng() * ingredients.length)];
-        const qty = selectedIng.count;
-        const purchaseTotal = qty * selectedIng.price;
-        const purchaseHour = Math.floor(8 + rng() * 3); // Morning deliveries
-        const purchaseTimestamp = `${dayIso}T${String(purchaseHour).padStart(2, "0")}:00:00.000Z`;
-
-        seedPurchases.push({
-          id: `seed-stock-${dayIso}-${i}`,
-          date: purchaseTimestamp,
-          item_name: selectedIng.name,
-          quantity: qty,
-          unit: selectedIng.unit,
-          unit_price: selectedIng.price,
-          total: purchaseTotal,
-          supplier: selectedIng.supplier,
-          notes: "Gourmet Grade Inventory Restock"
-        });
-      }
-    }
-
-    // Extract unique dates of actual checkouts in local/UTC slices safely (first 10 chars "YYYY-MM-DD")
-    const actualBillDates = new Set(activeStoreBills.map(b => b.created_at.slice(0, 10)));
-    
-    // Seed history filters out seed days where we already have actual store transactions
-    const filteredSeedBills = seedBills.filter(b => {
-      const bDate = b.created_at.slice(0, 10);
-      const inRange = new Date(b.created_at).getTime() >= startMs && new Date(b.created_at).getTime() <= endMs;
-      return inRange && !actualBillDates.has(bDate);
-    });
-
-    // Merge real bills with seed data for demo purposes
-    // Always include activeStoreBills (real checkout bills) + seed bills for dates without real data
-    const finalBills = [...activeStoreBills, ...filteredSeedBills];
-
-    // Same logic for stock purchases
-    const actualPurchaseDates = new Set(activeStorePurchases.map(p => p.date.slice(0, 10)));
-
-    const filteredSeedPurchases = seedPurchases.filter(p => {
-      const pDate = p.date.slice(0, 10);
-      const inRange = new Date(p.date).getTime() >= startMs && new Date(p.date).getTime() <= endMs;
-      return inRange && !actualPurchaseDates.has(pDate);
-    });
-
-    const finalPurchases = storePurchases.length === 0
-      ? []
-      : [...activeStorePurchases, ...filteredSeedPurchases];
-
-    // Sort ascending for clean charts render
-    finalBills.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    finalPurchases.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const finalPurchases = storePurchases
+      .filter(s => {
+        const t = new Date(s.date).getTime();
+        return t >= startMs && t <= endMs;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
       bills: finalBills,
       purchases: finalPurchases,
       startMs,
       endMs,
-      rng
     };
-  }, [selectedDate, reportType, customStartDate, customEndDate, storeBills, storePurchases, storeOrders, storeOrderItems]);
+  }, [selectedDate, reportType, customStartDate, customEndDate, storeBills, storePurchases]);
 
   // Compute metrics with filters applied
   const filteredData = useMemo(() => {
@@ -259,23 +130,12 @@ export const DashboardReports: React.FC = () => {
     if (filterItemName.trim()) {
       const searchLower = filterItemName.toLowerCase();
       resultBills = resultBills.filter(b => {
-        // For real bills with order_id, check actual order items
-        if (b.id && !b.id.startsWith("seed-bill-") && b.order_id) {
-          const matchedItems = storeOrderItems.filter(oi => oi.order_id === b.order_id);
-          return matchedItems.some(oi => {
-            const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-            return mItem && mItem.name.toLowerCase().includes(searchLower);
-          });
-        }
-        // For seed bills, use deterministic matching based on bill properties
-        const rng = createRng(`item-filter-${b.id}-${filterItemName}`);
-        const dishesCount = Math.floor(1 + rng() * 4);
-        for (let d = 0; d < dishesCount; d++) {
-          const itemIdx = Math.floor(rng() * storeMenuItems.length);
-          const item = storeMenuItems[itemIdx];
-          if (item && item.name.toLowerCase().includes(searchLower)) return true;
-        }
-        return false;
+        if (!b.order_id) return false;
+        const matchedItems = storeOrderItems.filter(oi => oi.order_id === b.order_id);
+        return matchedItems.some(oi => {
+          const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+          return mItem && mItem.name.toLowerCase().includes(searchLower);
+        });
       });
     }
 
@@ -299,46 +159,25 @@ export const DashboardReports: React.FC = () => {
     const netProfit = totalRevenue - totalExpenses;
     const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Top Selling item calculations
-    // To present pristine live telemetry, we map confirmed orders or generate cohesive distribution
+    // Per-dish sales — strictly from confirmed order items linked to bills in scope.
     const dishSales: Record<string, { qty: number; revenue: number; image: string; category: string }> = {};
-    
-    // Seed standard initial values
     storeMenuItems.forEach(item => {
       const cat = storeCategories.find(c => c.id === item.category_id)?.name || "Main Course";
       dishSales[item.name] = { qty: 0, revenue: 0, image: item.image_url, category: cat };
     });
 
-    // Populate using bills scale deterministically
-    billsList.forEach((bill, idx) => {
-      // If it is a real checkout, lookup its matched live ordered items
-      if (bill.id && !bill.id.startsWith("seed-bill-")) {
-        const matchedItems = storeOrderItems.filter(oi => oi.order_id === bill.order_id);
-        if (matchedItems.length > 0) {
-          matchedItems.forEach(oi => {
-            const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-            if (mItem && dishSales[mItem.name]) {
-              dishSales[mItem.name].qty += oi.quantity;
-              dishSales[mItem.name].revenue += oi.quantity * oi.price;
-            }
-          });
-          return; // Skip fallback random generator for this actual bill
+    billsList.forEach(bill => {
+      if (!bill.order_id) return;
+      const matchedItems = storeOrderItems.filter(
+        oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED
+      );
+      matchedItems.forEach(oi => {
+        const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+        if (mItem && dishSales[mItem.name]) {
+          dishSales[mItem.name].qty += oi.quantity;
+          dishSales[mItem.name].revenue += oi.quantity * oi.price;
         }
-      }
-
-      // Default deterministic rendering for simulated legacy seeds
-      const rngItem = createRng(`dish-sales-aggregation-${bill.id}-${idx}`);
-      // Each bill contains 1 to 5 random dishes
-      const dishesPurchased = Math.floor(1 + rngItem() * 4);
-      for (let d = 0; d < dishesPurchased; d++) {
-        const itemIdx = Math.floor(rngItem() * storeMenuItems.length);
-        const item = storeMenuItems[itemIdx];
-        if (item) {
-          const qty = Math.floor(1 + rngItem() * 3);
-          dishSales[item.name].qty += qty;
-          dishSales[item.name].revenue += qty * item.price;
-        }
-      }
+      });
     });
 
     const itemsAnalyticsList = Object.entries(dishSales)
@@ -384,77 +223,72 @@ export const DashboardReports: React.FC = () => {
     };
   }, [filteredData, parsedData.purchases, storeMenuItems, storeCategories, supplierPayments]);
 
-  // Historical Comparisons totals
+  // Historical Comparisons — strictly real data. If no prior period data
+  // exists, prior values stay 0. This is a financial section: no fake fills.
   const comparisonTotals = useMemo(() => {
-    // Generate deterministic values for prior periods to formulate trend coefficients
-    const refSeed = `comparison-${reportType}-${selectedDate}`;
-    const rng = createRng(refSeed);
-    
-    let comparisonLabel = "";
+    let comparisonLabel = "vs Last Year";
+    let priorStartMs = 0;
+    let priorEndMs = 0;
+
     if (reportType === "Daily") {
       comparisonLabel = "vs Yesterday";
+      const d = new Date(parsedData.startMs);
+      d.setUTCDate(d.getUTCDate() - 1);
+      priorStartMs = d.getTime();
+      const e = new Date(parsedData.endMs);
+      e.setUTCDate(e.getUTCDate() - 1);
+      priorEndMs = e.getTime();
     } else if (reportType === "Weekly") {
       comparisonLabel = "vs Last Week";
+      priorStartMs = parsedData.startMs - 7 * 86400000;
+      priorEndMs = parsedData.endMs - 7 * 86400000;
     } else if (reportType === "Monthly" || reportType === "Custom") {
-      comparisonLabel = "vs Last Month";
+      comparisonLabel = "vs Last Period";
+      const span = parsedData.endMs - parsedData.startMs;
+      priorStartMs = parsedData.startMs - span - 1;
+      priorEndMs = parsedData.startMs - 1;
     } else {
       comparisonLabel = "vs Last Year";
+      const d = new Date(parsedData.startMs);
+      d.setUTCFullYear(d.getUTCFullYear() - 1);
+      priorStartMs = d.getTime();
+      const e = new Date(parsedData.endMs);
+      e.setUTCFullYear(e.getUTCFullYear() - 1);
+      priorEndMs = e.getTime();
     }
 
-    if (storeBills.length === 0) {
-      return {
-        priorRevenue: 0,
-        percentage: 0,
-        label: comparisonLabel,
-        todaySales: 0,
-        yesterdaySales: 0,
-        todayDiff: 0,
-        thisWeekSales: 0,
-        lastWeekSales: 0,
-        weekDiff: 0,
-        thisMonthSales: 0,
-        lastMonthSales: 0,
-        monthDiff: 0
-      };
-    }
-    
-    const multipliers = {
-      Today: 0.88 + rng() * 0.24,
-      Yesterday: 0.85 + rng() * 0.2,
-      ThisWeek: 0.9 + rng() * 0.25,
-      LastWeek: 0.82 + rng() * 0.2,
-      ThisMonth: 0.92 + rng() * 0.2,
-      LastMonth: 0.88 + rng() * 0.18
-    };
+    const sumBillsBetween = (start: number, end: number) =>
+      storeBills.reduce((sum, b) => {
+        const t = new Date(b.created_at).getTime();
+        return (t >= start && t <= end) ? sum + b.total : sum;
+      }, 0);
 
     const currentRevenue = metrics.totalRevenue;
-    let priorRevenue = currentRevenue * 0.91; // Default fallbacks
-
-    if (reportType === "Daily") {
-      priorRevenue = Math.max(5000, currentRevenue * multipliers.Yesterday);
-    } else if (reportType === "Weekly") {
-      priorRevenue = Math.max(35000, currentRevenue * multipliers.LastWeek);
-    } else if (reportType === "Monthly" || reportType === "Custom") {
-      priorRevenue = Math.max(150000, currentRevenue * multipliers.LastMonth);
-    } else {
-      priorRevenue = Math.max(1800000, currentRevenue * 0.89);
-    }
-
+    const priorRevenue = sumBillsBetween(priorStartMs, priorEndMs);
     const percentage = priorRevenue > 0 ? ((currentRevenue - priorRevenue) / priorRevenue) * 100 : 0;
 
-    // Today vs Yesterday precise numbers
-    const todaySales = reportType === "Daily" ? currentRevenue : 22450 + Math.floor(rng() * 15000);
-    const yesterdaySales = reportType === "Daily" ? priorRevenue : 19800 + Math.floor(rng() * 12000);
+    const now = new Date();
+    const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0);
+    const todayEnd = todayStart + 86400000 - 1;
+    const yesterdayStart = todayStart - 86400000;
+    const yesterdayEnd = todayStart - 1;
+    const thisWeekStart = todayStart - 6 * 86400000;
+    const lastWeekStart = thisWeekStart - 7 * 86400000;
+    const lastWeekEnd = thisWeekStart - 1;
+    const thisMonthStart = todayStart - 29 * 86400000;
+    const lastMonthEnd = thisMonthStart - 1;
+    const lastMonthStart = lastMonthEnd - 29 * 86400000;
+
+    const todaySales = sumBillsBetween(todayStart, todayEnd);
+    const yesterdaySales = sumBillsBetween(yesterdayStart, yesterdayEnd);
     const todayDiff = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0;
 
-    // This Week vs Last Week
-    const thisWeekSales = reportType === "Weekly" ? currentRevenue : 145200 + Math.floor(rng() * 80000);
-    const lastWeekSales = reportType === "Weekly" ? priorRevenue : 138000 + Math.floor(rng() * 60000);
+    const thisWeekSales = sumBillsBetween(thisWeekStart, todayEnd);
+    const lastWeekSales = sumBillsBetween(lastWeekStart, lastWeekEnd);
     const weekDiff = lastWeekSales > 0 ? ((thisWeekSales - lastWeekSales) / lastWeekSales) * 100 : 0;
 
-    // This Month vs Last Month
-    const thisMonthSales = reportType === "Monthly" ? currentRevenue : 589000 + Math.floor(rng() * 200000);
-    const lastMonthSales = reportType === "Monthly" ? priorRevenue : 542000 + Math.floor(rng() * 150000);
+    const thisMonthSales = sumBillsBetween(thisMonthStart, todayEnd);
+    const lastMonthSales = sumBillsBetween(lastMonthStart, lastMonthEnd);
     const monthDiff = lastMonthSales > 0 ? ((thisMonthSales - lastMonthSales) / lastMonthSales) * 100 : 0;
 
     return {
@@ -469,27 +303,30 @@ export const DashboardReports: React.FC = () => {
       weekDiff,
       thisMonthSales,
       lastMonthSales,
-      monthDiff
+      monthDiff,
     };
-  }, [metrics.totalRevenue, reportType, selectedDate, storeBills]);
+  }, [metrics.totalRevenue, reportType, parsedData.startMs, parsedData.endMs, storeBills]);
 
-  // Aggregate Sparkline data-points for KPI cards
+  // Sparkline data — real per-day buckets from the last 12 days (or 12 buckets
+  // covering the current window). No synthetic values.
   const sparklines = useMemo(() => {
-    // Generate 12 sequential items tracking daily curves
-    const rng = createRng(`kpi-sparkline-${reportType}-${selectedDate}`);
-    if (storeBills.length === 0) {
-      return {
-        bills: Array.from({ length: 12 }, () => 0),
-        revenue: Array.from({ length: 12 }, () => 0),
-        avgBill: Array.from({ length: 12 }, () => 0)
-      };
-    }
-    return {
-      bills: Array.from({ length: 12 }, () => Math.floor(5 + rng() * 15)),
-      revenue: Array.from({ length: 12 }, () => Math.floor(2000 + rng() * 8000)),
-      avgBill: Array.from({ length: 12 }, () => Math.floor(350 + rng() * 600))
-    };
-  }, [reportType, selectedDate, storeBills]);
+    const buckets = 12;
+    const span = Math.max(1, parsedData.endMs - parsedData.startMs);
+    const bucketSize = span / buckets;
+    const billsArr = Array.from({ length: buckets }, () => 0);
+    const revenueArr = Array.from({ length: buckets }, () => 0);
+
+    parsedData.bills.forEach(b => {
+      const t = new Date(b.created_at).getTime();
+      const idx = Math.min(buckets - 1, Math.max(0, Math.floor((t - parsedData.startMs) / bucketSize)));
+      billsArr[idx] += 1;
+      revenueArr[idx] += b.total;
+    });
+
+    const avgBillArr = billsArr.map((c, i) => (c > 0 ? Math.round(revenueArr[i] / c) : 0));
+
+    return { bills: billsArr, revenue: revenueArr.map(v => Math.round(v)), avgBill: avgBillArr };
+  }, [parsedData.bills, parsedData.startMs, parsedData.endMs]);
 
   // Chart 1 & Chart 7 timescale structures (Revenue Trend + P&L Areas)
   const timeSeriesChartData = useMemo(() => {
@@ -563,41 +400,29 @@ export const DashboardReports: React.FC = () => {
       net: parseFloat((item.revenue - item.expense).toFixed(2))
     }));
 
-    // Guarantee data curves are never completely flat empty
-    return res.map((r, i) => {
-      if (storeBills.length === 0 && storePurchases.length === 0) {
-        return r;
-      }
-      if (r.revenue === 0 && r.expense === 0) {
-        const fall = 800 + Math.sin(i * 1.5) * 450;
-        return {
-          ...r,
-          revenue: parseFloat(Math.max(0, fall).toFixed(0)),
-          expense: parseFloat(Math.max(0, fall * 0.4).toFixed(0)),
-          net: parseFloat((fall * 0.6).toFixed(0))
-        };
-      }
-      return r;
-    });
+    return res;
+  }, [filteredData, parsedData.bills, parsedData.purchases, reportType]);
 
-  }, [filteredData, parsedData.purchases, reportType, storeBills, storePurchases]);
-
-  // Chart 2: Category Shares Donut Charts metrics
+  // Chart 2: Category Shares — real revenue per category from confirmed
+  // order items linked to bills in scope. No synthetic distribution.
   const categoryDonutData = useMemo(() => {
-    const list = filteredData;
     const catRevenue: Record<string, number> = {};
     storeCategories.forEach(c => { catRevenue[c.name] = 0; });
 
-    list.forEach((bill, idx) => {
-      const rng = createRng(`donut-weights-${bill.id}-${idx}`);
-      // Distribute bill totals deterministically over standard food ratios
-      storeCategories.forEach((cat, cIdx) => {
-        const ratio = cIdx === 0 ? 0.22 : cIdx === 1 ? 0.38 : cIdx === 2 ? 0.25 : cIdx === 3 ? 0.08 : 0.07;
-        catRevenue[cat.name] += Math.floor(bill.total * ratio * (0.9 + rng() * 0.2));
+    filteredData.forEach(bill => {
+      if (!bill.order_id) return;
+      const matchedItems = storeOrderItems.filter(
+        oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED
+      );
+      matchedItems.forEach(oi => {
+        const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+        if (!mItem) return;
+        const cat = storeCategories.find(c => c.id === mItem.category_id);
+        if (!cat) return;
+        catRevenue[cat.name] = (catRevenue[cat.name] || 0) + oi.price * oi.quantity;
       });
     });
 
-    // Color definitions mimicking palette variables
     const colors = ["#7B1E2B", "#D4AF37", "#A03546", "#E8C766", "#2D2A26"];
 
     return Object.entries(catRevenue).map(([name, value], idx) => ({
@@ -605,9 +430,9 @@ export const DashboardReports: React.FC = () => {
       value: parseFloat(value.toFixed(0)),
       color: colors[idx % colors.length]
     }));
-  }, [filteredData, storeCategories]);
+  }, [filteredData, storeCategories, storeMenuItems, storeOrderItems]);
 
-  // Chart 5: Table Performance (Tables 1 to 20)
+  // Chart 5: Table Performance (Tables 1 to 20) — real data only.
   const tableChartData = useMemo(() => {
     const tableRev = Array.from({ length: 20 }, (_, idx) => ({
       table: `Table ${idx + 1}`,
@@ -623,78 +448,85 @@ export const DashboardReports: React.FC = () => {
       }
     });
 
-    // Distribute baseline seed loads if table records are completely dry (i.e. no real bills exist in current set)
-    const hasAnyRealBills = filteredData.some(b => !b.id.startsWith("seed-"));
-    return tableRev.map((tr, idx) => {
-      if (storeBills.length === 0) {
-        return tr;
-      }
-      if (tr.revenue === 0 && !hasAnyRealBills) {
-        const rng = createRng(`tab-seed-metrics-${idx}-${reportType}`);
-        const rev = 5000 + Math.floor(rng() * 18000);
-        return {
-          table: tr.table,
-          revenue: rev,
-          orders: 10 + Math.floor(rng() * 32)
-        };
-      }
-      return tr;
-    });
-  }, [filteredData, reportType, storeBills]);
+    return tableRev;
+  }, [filteredData]);
 
-  // Chart 6: Coupon redemption rates
+  // Chart 6: Coupon Generated vs Redeemed — strictly real.
+  // Generated = bills in bucket whose total qualifies for auto-coupon.
+  // Redeemed = bills in bucket that actually had a coupon applied.
   const couponChartData = useMemo(() => {
-    // Collect active coupon generations vs usages in chosen scale
-    const rng = createRng(`coupons-performance-${reportType}-${selectedDate}`);
-    const segments = timeSeriesChartData.map((t, idx) => {
-      if (storeBills.length === 0) {
-        return {
-          label: t.label,
-          Generated: 0,
-          Redeemed: 0
-        };
-      }
-      const generated = Math.floor(2 + rng() * 8);
-      const redeemed = Math.floor(generated * (0.45 + rng() * 0.35));
-      return {
-        label: t.label,
-        Generated: generated,
-        Redeemed: redeemed
-      };
+    const couponMin = couponSettings.min_purchase_for_coupon;
+    const buckets: Record<string, { Generated: number; Redeemed: number }> = {};
+    timeSeriesChartData.forEach(t => {
+      buckets[t.label] = { Generated: 0, Redeemed: 0 };
     });
-    return segments;
-  }, [timeSeriesChartData, reportType, selectedDate, storeBills]);
 
-  // Chart 8: Hourly Heatmap custom array (Days of week vs active slots)
+    const labelFor = (date: Date): string | null => {
+      if (reportType === "Daily") {
+        const h = date.getHours();
+        const adj = Math.max(10, Math.min(22, Math.floor(h / 2) * 2));
+        return `${String(adj).padStart(2, "0")}:00`;
+      }
+      if (reportType === "Yearly") {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return months[date.getMonth()];
+      }
+      return date.toISOString().slice(5, 10);
+    };
+
+    filteredData.forEach(b => {
+      const label = labelFor(new Date(b.created_at));
+      if (!label || !buckets[label]) return;
+      if (b.total >= couponMin) buckets[label].Generated += 1;
+      if (b.coupon_code) buckets[label].Redeemed += 1;
+    });
+
+    return timeSeriesChartData.map(t => ({
+      label: t.label,
+      Generated: buckets[t.label]?.Generated || 0,
+      Redeemed: buckets[t.label]?.Redeemed || 0,
+    }));
+  }, [timeSeriesChartData, filteredData, reportType, couponSettings.min_purchase_for_coupon]);
+
+  // Chart 8: Hourly Heatmap — real bill counts per (day, hour bucket).
   const heatmapData = useMemo(() => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const hours = ["11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
-    
-    // Grid generation
-    const grid: { day: string; hour: string; intensity: number; val: number }[] = [];
-    const rng = createRng(`busy-hours-heatmap-${reportType}-${selectedDate}`);
+    const hourBuckets = [11, 13, 15, 17, 19, 21, 23];
+    const hours = hourBuckets.map(h => `${String(h).padStart(2, "0")}:00`);
 
+    const counts: number[][] = days.map(() => hourBuckets.map(() => 0));
+
+    parsedData.bills.forEach(b => {
+      const d = new Date(b.created_at);
+      const dIdx = d.getDay();
+      const h = d.getHours();
+      // Pick nearest hour bucket
+      let hIdx = 0;
+      let bestDist = Infinity;
+      hourBuckets.forEach((hb, i) => {
+        const dist = Math.abs(hb - h);
+        if (dist < bestDist) { bestDist = dist; hIdx = i; }
+      });
+      counts[dIdx][hIdx] += 1;
+    });
+
+    const maxCount = Math.max(1, ...counts.flat());
+
+    const grid: { day: string; hour: string; intensity: number; val: number }[] = [];
     days.forEach((day, dIdx) => {
       hours.forEach((hour, hIdx) => {
-        // High dining peak multipliers (Lunch times 13:00 / Dinner times 19:00 - 21:00)
-        let coef = storeBills.length === 0 ? 0 : 0.2 + rng() * 0.5;
-        if (storeBills.length > 0 && (hour === "13:00" || hour === "19:00" || hour === "21:00")) {
-          coef += 0.45;
-        }
-        if (storeBills.length > 0 && (dIdx === 5 || dIdx === 6 || dIdx === 0)) { // Weekends
-          coef += 0.25;
-        }
+        const val = counts[dIdx][hIdx];
         grid.push({
           day,
           hour,
-          intensity: Math.min(1, coef),
-          val: Math.floor(coef * 12)
+          intensity: val / maxCount,
+          val,
         });
       });
     });
 
     return { grid, days, hours };
-  }, [reportType, selectedDate, storeBills]);
+  }, [parsedData.bills]);
 
   // Filtered Item Analytics sorting & pagination
   const sortedAndPaginatedItems = useMemo(() => {
@@ -840,50 +672,19 @@ export const DashboardReports: React.FC = () => {
     );
   };
 
-  // Point 1: per-bill item breakdown helper (works for real + seed bills)
+  // Per-bill item breakdown helper — real data only.
   const getBillItems = (bill: Bill): { name: string; qty: number; rate: number; amount: number }[] => {
-    // Real checkout: pull from actual confirmed order items
-    if (bill.id && !bill.id.startsWith("seed-bill-") && bill.order_id) {
-      const items = storeOrderItems.filter(oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED);
-      if (items.length > 0) {
-        return items.map(oi => {
-          const m = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-          return {
-            name: m?.name || "Item",
-            qty: oi.quantity,
-            rate: +oi.price.toFixed(2),
-            amount: +(oi.price * oi.quantity).toFixed(2),
-          };
-        });
-      }
-    }
-    // Seed bill: deterministic items reconciled to bill.subtotal
-    const rngI = createRng(`bill-items-detail-${bill.id}`);
-    const dishesCount = Math.max(1, Math.floor(1 + rngI() * 4));
-    const lines: { name: string; qty: number; rate: number; amount: number }[] = [];
-    let allocated = 0;
-    for (let d = 0; d < dishesCount; d++) {
-      const idx = Math.floor(rngI() * storeMenuItems.length);
-      const item = storeMenuItems[idx];
-      if (!item) continue;
-      const qty = Math.max(1, Math.floor(1 + rngI() * 3));
-      const amount = item.price * qty;
-      lines.push({ name: item.name, qty, rate: item.price, amount });
-      allocated += amount;
-    }
-    if (lines.length === 0 && storeMenuItems[0]) {
-      lines.push({ name: storeMenuItems[0].name, qty: 1, rate: storeMenuItems[0].price, amount: storeMenuItems[0].price });
-      allocated = storeMenuItems[0].price;
-    }
-    // Scale prices proportionally so lines reconcile to bill.subtotal
-    if (allocated > 0 && bill.subtotal > 0) {
-      const scale = bill.subtotal / allocated;
-      lines.forEach(l => {
-        l.rate = +(l.rate * scale).toFixed(2);
-        l.amount = +(l.qty * l.rate).toFixed(2);
-      });
-    }
-    return lines;
+    if (!bill.order_id) return [];
+    const items = storeOrderItems.filter(oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED);
+    return items.map(oi => {
+      const m = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+      return {
+        name: m?.name || "Item",
+        qty: oi.quantity,
+        rate: +oi.price.toFixed(2),
+        amount: +(oi.price * oi.quantity).toFixed(2),
+      };
+    });
   };
 
   // Point 1: aggregate highest-sales date(s)

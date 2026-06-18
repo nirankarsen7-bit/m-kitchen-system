@@ -267,6 +267,7 @@ interface AppState {
   // Stock tracking
   stockPurchases: StockPurchase[];
   addStockEntry: (entry: Omit<StockPurchase, "id" | "total">) => void;
+  editStockEntry: (id: string, updates: Partial<Omit<StockPurchase, "id" | "total">>) => void;
   deleteStockEntry: (id: string) => void;
 
   // Material usage tracking (F11)
@@ -642,6 +643,9 @@ export const useStore = create<AppState>((set, get) => {
         if (currentBillId && (coupon.used_bill_ids || []).includes(currentBillId)) {
           return { valid: false, discountAmount: 0, error: "This coupon has already been used for this bill." };
         }
+        if ((coupon.min_purchase || 0) > 0 && totalAmount < coupon.min_purchase) {
+          return { valid: false, discountAmount: 0, error: `Minimum purchase of ₹${coupon.min_purchase} required to use this coupon.` };
+        }
         const flat = Math.min(coupon.discount, totalAmount);
         return { valid: true, discountAmount: flat };
       }
@@ -945,10 +949,25 @@ export const useStore = create<AppState>((set, get) => {
       get().logAudit("STOCK_ENTRY_ADDED", `Stock added: ${entry.quantity}${entry.unit} of "${entry.item_name}" valued at ₹${total.toFixed(2)}.`);
     },
 
+    editStockEntry: (id, updates) => {
+      const updated = get().stockPurchases.map(s => {
+        if (s.id !== id) return s;
+        const merged = { ...s, ...updates } as StockPurchase;
+        merged.total = (merged.quantity || 0) * (merged.unit_price || 0);
+        return merged;
+      });
+      set({ stockPurchases: updated });
+      saveToStorage("stock_purchases", updated);
+      const e = updated.find(s => s.id === id);
+      get().logAudit("STOCK_ENTRY_EDITED", `Stock entry edited: "${e?.item_name}" (₹${e?.total.toFixed(2)}).`);
+    },
+
     deleteStockEntry: (id) => {
+      const target = get().stockPurchases.find(s => s.id === id);
       const updated = get().stockPurchases.filter(s => s.id !== id);
       set({ stockPurchases: updated });
       saveToStorage("stock_purchases", updated);
+      if (target) get().logAudit("STOCK_ENTRY_DELETED", `Stock entry deleted: "${target.item_name}" (₹${target.total.toFixed(2)}).`);
     },
 
     // Material usage tracking (F11)

@@ -2,13 +2,14 @@ import React, { useState, useRef } from "react";
 import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight } from "lucide-react";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil } from "lucide-react";
 import { UserRole } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
   // Zustand States
   const stockPurchases = useStore(state => state.stockPurchases);
   const addStockEntry = useStore(state => state.addStockEntry);
+  const editStockEntry = useStore(state => state.editStockEntry);
   const deleteStockEntry = useStore(state => state.deleteStockEntry);
   const supplierPayments = useStore(state => state.supplierPayments);
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
@@ -47,6 +48,15 @@ export const DashboardStock: React.FC = () => {
   // Search Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState("all");
+
+  // Edit Stock Modal States (Admin only)
+  const [editStockId, setEditStockId] = useState<string | null>(null);
+  const [editItemName, setEditItemName] = useState("");
+  const [editQty, setEditQty] = useState("");
+  const [editUnit, setEditUnit] = useState("kg");
+  const [editUnitPrice, setEditUnitPrice] = useState("");
+  const [editSupplier, setEditSupplier] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
@@ -151,6 +161,48 @@ export const DashboardStock: React.FC = () => {
     setPaymentProofImage(null);
     setShowPaymentModal(true);
   };
+
+  // Admin: open edit modal pre-filled with the selected purchase entry.
+  const openEditModal = (stockId: string) => {
+    const s = stockPurchases.find(x => x.id === stockId);
+    if (!s) return;
+    setEditStockId(stockId);
+    setEditItemName(s.item_name);
+    setEditQty(String(s.quantity));
+    setEditUnit(s.unit);
+    setEditUnitPrice(String(s.unit_price));
+    setEditSupplier(s.supplier || "");
+    setEditNotes(s.notes || "");
+  };
+
+  const handleSaveEdit = () => {
+    if (!editStockId) return;
+    const qtyVal = parseFloat(editQty);
+    const priceVal = parseFloat(editUnitPrice);
+    if (!editItemName.trim() || isNaN(qtyVal) || isNaN(priceVal) || qtyVal <= 0 || priceVal < 0) {
+      toast.error("Please enter a valid name, quantity and unit price.");
+      return;
+    }
+    editStockEntry(editStockId, {
+      item_name: editItemName.trim(),
+      quantity: qtyVal,
+      unit: editUnit,
+      unit_price: priceVal,
+      supplier: editSupplier,
+      notes: editNotes || undefined,
+    });
+    toast.success("Purchase entry updated.");
+    setEditStockId(null);
+  };
+
+  const handleDeleteStock = (stockId: string) => {
+    const s = stockPurchases.find(x => x.id === stockId);
+    if (!s) return;
+    if (!confirm(`Delete purchase entry "${s.item_name}" (₹${s.total.toFixed(2)})? This cannot be undone.`)) return;
+    deleteStockEntry(stockId);
+    toast.success("Purchase entry deleted.");
+  };
+
 
   // Autocomplete hints from previous distinct items
   const uniqueItemSuggestions = Array.from(new Set(stockPurchases.map(s => s.item_name)));
@@ -475,7 +527,25 @@ export const DashboardStock: React.FC = () => {
                                 <IndianRupee className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {/* Point 5: Once a purchase is recorded, it cannot be deleted (audit-safe). */}
+                            {/* Admin-only: edit & delete purchase entry */}
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(s.id)}
+                                  className="p-1 rounded bg-gold-rich/10 text-maroon-royal hover:bg-gold-rich/20 cursor-pointer"
+                                  title="Edit Purchase"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteStock(s.id)}
+                                  className="p-1 rounded bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
+                                  title="Delete Purchase"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );
@@ -807,6 +877,58 @@ export const DashboardStock: React.FC = () => {
         </div>
       )}
 
+      {/* Admin-only: Edit Purchase Modal */}
+      {isAdmin && editStockId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold text-maroon-royal flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-gold-rich" /> Edit Purchase Entry
+              </h3>
+              <button onClick={() => setEditStockId(null)} className="p-1 hover:bg-cream-warm rounded">
+                <X className="w-4 h-4 text-mocha" />
+              </button>
+            </div>
+
+            <FormInput label="Item / Material Name" value={editItemName} onChange={(e) => setEditItemName(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormInput label="Quantity" type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Unit</label>
+                <select
+                  value={editUnit}
+                  onChange={(e) => setEditUnit(e.target.value)}
+                  className="w-full px-3.5 py-3 text-sm text-espresso bg-white border border-gold-rich/20 rounded-xl focus:outline-none focus:border-gold-rich"
+                >
+                  <option value="kg">kg</option>
+                  <option value="g">g</option>
+                  <option value="litres">litres</option>
+                  <option value="ml">ml</option>
+                  <option value="units">units</option>
+                  <option value="packs">packs</option>
+                  <option value="cyl">cyl</option>
+                </select>
+              </div>
+            </div>
+            <FormInput label="Unit Price (₹)" type="number" value={editUnitPrice} onChange={(e) => setEditUnitPrice(e.target.value)} />
+            <FormInput label="Supplier" value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)} />
+            <FormInput label="Notes (optional)" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+
+            <div className="text-[11px] text-mocha bg-cream-warm/40 rounded-lg px-3 py-2">
+              New gross total: <span className="font-mono font-bold text-maroon-royal">₹{((parseFloat(editQty) || 0) * (parseFloat(editUnitPrice) || 0)).toFixed(2)}</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setEditStockId(null)} className="flex-1">Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleSaveEdit} className="flex-1 font-bold">
+                <span>Save Changes</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

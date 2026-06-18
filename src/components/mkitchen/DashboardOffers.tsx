@@ -4,12 +4,16 @@ import { UserRole } from "@/lib/mk-types";
 import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Settings, Share2, Crown, Power, Download, TicketCheck, BarChart3 } from "lucide-react";
-import logoOutlineAsset from "@/assets/logo_outline.png.asset.json";
+
+// Brand logo URL — same chef medallion used in MaharajiLogo. CDN-hosted so it
+// loads identically across preview and Cloudflare published builds.
+const BRAND_LOGO_URL = "https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png";
 
 type CouponDownloadData = {
   code: string;
   discount: number;
   usedCount: number;
+  minPurchase: number;
 };
 
 const loadCouponLogo = () => new Promise<HTMLImageElement | null>((resolve) => {
@@ -17,7 +21,7 @@ const loadCouponLogo = () => new Promise<HTMLImageElement | null>((resolve) => {
   image.crossOrigin = "anonymous";
   image.onload = () => resolve(image);
   image.onerror = () => resolve(null);
-  image.src = logoOutlineAsset.url;
+  image.src = BRAND_LOGO_URL;
 });
 
 const roundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
@@ -41,7 +45,7 @@ const drawCenteredImage = (ctx: CanvasRenderingContext2D, image: HTMLImageElemen
   ctx.drawImage(image, cx - width / 2, cy - height / 2, width, height);
 };
 
-const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownloadData) => {
+const downloadCouponAsJpg = async ({ code, discount, usedCount, minPurchase }: CouponDownloadData) => {
   const logo = await loadCouponLogo();
   const canvas = document.createElement("canvas");
   const width = 1800;
@@ -187,7 +191,8 @@ const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownload
 
   ctx.fillStyle = "#5c4033";
   ctx.font = "700 25px Arial, sans-serif";
-  const perks = ["Dine-in & Takeaway", "No Minimum Bill", "Valid Once Per Bill", "Across All Menus"];
+  const minPurchaseLabel = minPurchase > 0 ? `Min Bill ₹${minPurchase}` : "No Minimum Bill";
+  const perks = ["Dine-in & Takeaway", minPurchaseLabel, "Valid Once Per Bill", "Across All Menus"];
   perks.forEach((perk, index) => {
     const x = 835 + (index % 2) * 385;
     const y = 486 + Math.floor(index / 2) * 54;
@@ -258,8 +263,10 @@ interface VoucherProps {
   code: string;
   discount: number;
   usedCount: number;
+  minPurchase: number;
 }
-const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, discount, usedCount }, ref) => {
+const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, discount, usedCount, minPurchase }, ref) => {
+  const minBillLabel = minPurchase > 0 ? `Min Bill ₹${minPurchase}` : "No Minimum Bill";
   return (
     <div
       ref={ref}
@@ -300,7 +307,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
         {/* light watermark logo (background) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <img
-            src={logoOutlineAsset.url}
+            src={BRAND_LOGO_URL}
             alt=""
             aria-hidden
             className="w-[125%] max-w-none object-contain"
@@ -332,7 +339,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
         {/* Foreground logo + brand */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
           <img
-            src={logoOutlineAsset.url}
+            src={BRAND_LOGO_URL}
             alt="Maharaji Kitchen"
             className="w-[68%] max-w-[170px] mx-auto object-contain"
             style={{
@@ -443,7 +450,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
           </p>
           <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" style={{ color: "#5C4033", fontSize: "clamp(7px, 0.95vw, 10px)" }}>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Dine-in &amp; Takeaway</li>
-            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> No Minimum Bill</li>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> {minBillLabel}</li>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Valid Once Per Bill</li>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Across All Menus</li>
           </ul>
@@ -511,6 +518,7 @@ export const DashboardOffers: React.FC = () => {
   const [isCoupModalOpen, setIsCoupModalOpen] = useState(false);
   const [coupCode, setCoupCode] = useState("");
   const [coupValue, setCoupValue] = useState("");
+  const [coupMinPurchase, setCoupMinPurchase] = useState("");
 
   const [minPurchaseForCoupon, setMinPurchaseForCoupon] = useState(couponSettings.min_purchase_for_coupon.toString());
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(couponSettings.coupon_discount_percent.toString());
@@ -547,15 +555,20 @@ export const DashboardOffers: React.FC = () => {
   const handleSaveCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(coupValue);
+    const minP = parseFloat(coupMinPurchase) || 0;
     if (!coupCode.trim() || isNaN(val) || val <= 0) {
       toast.error("Please enter a valid code and discount amount!");
+      return;
+    }
+    if (minP < 0) {
+      toast.error("Minimum purchase cannot be negative.");
       return;
     }
     addCoupon({
       code: coupCode.trim().toUpperCase(),
       discount_type: "flat",
       discount: val,
-      min_purchase: 0,
+      min_purchase: minP,
       linked_bill_id: null,
       valid_from: new Date().toISOString(),
       valid_to: new Date(Date.now() + 86400000 * 365).toISOString(),
@@ -563,7 +576,7 @@ export const DashboardOffers: React.FC = () => {
       is_enabled: true,
       used_bill_ids: [],
     });
-    setCoupCode(""); setCoupValue(""); setIsCoupModalOpen(false);
+    setCoupCode(""); setCoupValue(""); setCoupMinPurchase(""); setIsCoupModalOpen(false);
     toast.success("Special Discount Coupon created!");
   };
 
@@ -815,6 +828,7 @@ export const DashboardOffers: React.FC = () => {
                         code={cop.code}
                         discount={cop.discount}
                         usedCount={usedCount}
+                        minPurchase={cop.min_purchase || 0}
                       />
                       <div className="flex gap-2">
                         <button
@@ -824,7 +838,7 @@ export const DashboardOffers: React.FC = () => {
                           <Share2 className="w-3.5 h-3.5" /> WhatsApp
                         </button>
                         <button
-                          onClick={() => handleDownloadCoupon(cop.id, { code: cop.code, discount: cop.discount, usedCount })}
+                          onClick={() => handleDownloadCoupon(cop.id, { code: cop.code, discount: cop.discount, usedCount, minPurchase: cop.min_purchase || 0 })}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gold-gradient text-charcoal-deep text-[11px] font-bold uppercase tracking-wider hover:brightness-105 transition-all shadow-md"
                         >
                           <Download className="w-3.5 h-3.5" /> Download
@@ -921,11 +935,12 @@ export const DashboardOffers: React.FC = () => {
             <h3 className="font-serif text-lg font-bold text-maroon-royal mb-1 flex items-center gap-2">
               <Crown className="w-5 h-5 text-gold-rich" /> Create Special Discount Coupon
             </h3>
-            <p className="text-[11px] text-mocha mb-4">Flat discount, no minimum purchase. Reusable across bills (once per bill).</p>
+            <p className="text-[11px] text-mocha mb-4">Flat discount coupon. Set a minimum bill amount (0 = no minimum). Reusable across bills (once per bill).</p>
 
             <form onSubmit={handleSaveCoupon} className="space-y-4">
               <FormInput label="Coupon Code" value={coupCode} onChange={(e) => setCoupCode(e.target.value.toUpperCase())} placeholder="eg. MAHA200" required />
               <FormInput label="Flat Discount Amount (₹)" type="number" value={coupValue} onChange={(e) => setCoupValue(e.target.value)} placeholder="eg. 100, 200, 500" required />
+              <FormInput label="Minimum Purchase Required (₹) — 0 for no minimum" type="number" value={coupMinPurchase} onChange={(e) => setCoupMinPurchase(e.target.value)} placeholder="eg. 0, 500, 1000" />
 
               <div className="flex gap-2 pt-2 justify-end">
                 <Button variant="ghost" size="sm" type="button" onClick={() => setIsCoupModalOpen(false)}>Discard</Button>
