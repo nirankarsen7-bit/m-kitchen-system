@@ -191,7 +191,8 @@ const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownload
 
   ctx.fillStyle = "#5c4033";
   ctx.font = "700 25px Arial, sans-serif";
-  const perks = ["Dine-in & Takeaway", "No Minimum Bill", "Valid Once Per Bill", "Across All Menus"];
+  const minPurchaseLabel = minPurchase > 0 ? `Min Bill ₹${minPurchase}` : "No Minimum Bill";
+  const perks = ["Dine-in & Takeaway", minPurchaseLabel, "Valid Once Per Bill", "Across All Menus"];
   perks.forEach((perk, index) => {
     const x = 835 + (index % 2) * 385;
     const y = 486 + Math.floor(index / 2) * 54;
