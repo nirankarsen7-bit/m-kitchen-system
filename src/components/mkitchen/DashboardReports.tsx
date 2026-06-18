@@ -410,41 +410,29 @@ export const DashboardReports: React.FC = () => {
       net: parseFloat((item.revenue - item.expense).toFixed(2))
     }));
 
-    // Guarantee data curves are never completely flat empty
-    return res.map((r, i) => {
-      if (storeBills.length === 0 && storePurchases.length === 0) {
-        return r;
-      }
-      if (r.revenue === 0 && r.expense === 0) {
-        const fall = 800 + Math.sin(i * 1.5) * 450;
-        return {
-          ...r,
-          revenue: parseFloat(Math.max(0, fall).toFixed(0)),
-          expense: parseFloat(Math.max(0, fall * 0.4).toFixed(0)),
-          net: parseFloat((fall * 0.6).toFixed(0))
-        };
-      }
-      return r;
-    });
+    return res;
+  }, [filteredData, parsedData.bills, parsedData.purchases, reportType]);
 
-  }, [filteredData, parsedData.purchases, reportType, storeBills, storePurchases]);
-
-  // Chart 2: Category Shares Donut Charts metrics
+  // Chart 2: Category Shares — real revenue per category from confirmed
+  // order items linked to bills in scope. No synthetic distribution.
   const categoryDonutData = useMemo(() => {
-    const list = filteredData;
     const catRevenue: Record<string, number> = {};
     storeCategories.forEach(c => { catRevenue[c.name] = 0; });
 
-    list.forEach((bill, idx) => {
-      const rng = createRng(`donut-weights-${bill.id}-${idx}`);
-      // Distribute bill totals deterministically over standard food ratios
-      storeCategories.forEach((cat, cIdx) => {
-        const ratio = cIdx === 0 ? 0.22 : cIdx === 1 ? 0.38 : cIdx === 2 ? 0.25 : cIdx === 3 ? 0.08 : 0.07;
-        catRevenue[cat.name] += Math.floor(bill.total * ratio * (0.9 + rng() * 0.2));
+    filteredData.forEach(bill => {
+      if (!bill.order_id) return;
+      const matchedItems = storeOrderItems.filter(
+        oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED
+      );
+      matchedItems.forEach(oi => {
+        const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+        if (!mItem) return;
+        const cat = storeCategories.find(c => c.id === mItem.category_id);
+        if (!cat) return;
+        catRevenue[cat.name] = (catRevenue[cat.name] || 0) + oi.price * oi.quantity;
       });
     });
 
-    // Color definitions mimicking palette variables
     const colors = ["#7B1E2B", "#D4AF37", "#A03546", "#E8C766", "#2D2A26"];
 
     return Object.entries(catRevenue).map(([name, value], idx) => ({
@@ -452,9 +440,9 @@ export const DashboardReports: React.FC = () => {
       value: parseFloat(value.toFixed(0)),
       color: colors[idx % colors.length]
     }));
-  }, [filteredData, storeCategories]);
+  }, [filteredData, storeCategories, storeMenuItems, storeOrderItems]);
 
-  // Chart 5: Table Performance (Tables 1 to 20)
+  // Chart 5: Table Performance (Tables 1 to 20) — real data only.
   const tableChartData = useMemo(() => {
     const tableRev = Array.from({ length: 20 }, (_, idx) => ({
       table: `Table ${idx + 1}`,
@@ -470,78 +458,85 @@ export const DashboardReports: React.FC = () => {
       }
     });
 
-    // Distribute baseline seed loads if table records are completely dry (i.e. no real bills exist in current set)
-    const hasAnyRealBills = filteredData.some(b => !b.id.startsWith("seed-"));
-    return tableRev.map((tr, idx) => {
-      if (storeBills.length === 0) {
-        return tr;
-      }
-      if (tr.revenue === 0 && !hasAnyRealBills) {
-        const rng = createRng(`tab-seed-metrics-${idx}-${reportType}`);
-        const rev = 5000 + Math.floor(rng() * 18000);
-        return {
-          table: tr.table,
-          revenue: rev,
-          orders: 10 + Math.floor(rng() * 32)
-        };
-      }
-      return tr;
-    });
-  }, [filteredData, reportType, storeBills]);
+    return tableRev;
+  }, [filteredData]);
 
-  // Chart 6: Coupon redemption rates
+  // Chart 6: Coupon Generated vs Redeemed — strictly real.
+  // Generated = bills in bucket whose total qualifies for auto-coupon.
+  // Redeemed = bills in bucket that actually had a coupon applied.
   const couponChartData = useMemo(() => {
-    // Collect active coupon generations vs usages in chosen scale
-    const rng = createRng(`coupons-performance-${reportType}-${selectedDate}`);
-    const segments = timeSeriesChartData.map((t, idx) => {
-      if (storeBills.length === 0) {
-        return {
-          label: t.label,
-          Generated: 0,
-          Redeemed: 0
-        };
-      }
-      const generated = Math.floor(2 + rng() * 8);
-      const redeemed = Math.floor(generated * (0.45 + rng() * 0.35));
-      return {
-        label: t.label,
-        Generated: generated,
-        Redeemed: redeemed
-      };
+    const couponMin = couponSettings.min_purchase_for_coupon;
+    const buckets: Record<string, { Generated: number; Redeemed: number }> = {};
+    timeSeriesChartData.forEach(t => {
+      buckets[t.label] = { Generated: 0, Redeemed: 0 };
     });
-    return segments;
-  }, [timeSeriesChartData, reportType, selectedDate, storeBills]);
 
-  // Chart 8: Hourly Heatmap custom array (Days of week vs active slots)
+    const labelFor = (date: Date): string | null => {
+      if (reportType === "Daily") {
+        const h = date.getHours();
+        const adj = Math.max(10, Math.min(22, Math.floor(h / 2) * 2));
+        return `${String(adj).padStart(2, "0")}:00`;
+      }
+      if (reportType === "Yearly") {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return months[date.getMonth()];
+      }
+      return date.toISOString().slice(5, 10);
+    };
+
+    filteredData.forEach(b => {
+      const label = labelFor(new Date(b.created_at));
+      if (!label || !buckets[label]) return;
+      if (b.total >= couponMin) buckets[label].Generated += 1;
+      if (b.coupon_code) buckets[label].Redeemed += 1;
+    });
+
+    return timeSeriesChartData.map(t => ({
+      label: t.label,
+      Generated: buckets[t.label]?.Generated || 0,
+      Redeemed: buckets[t.label]?.Redeemed || 0,
+    }));
+  }, [timeSeriesChartData, filteredData, reportType, couponSettings.min_purchase_for_coupon]);
+
+  // Chart 8: Hourly Heatmap — real bill counts per (day, hour bucket).
   const heatmapData = useMemo(() => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const hours = ["11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
-    
-    // Grid generation
-    const grid: { day: string; hour: string; intensity: number; val: number }[] = [];
-    const rng = createRng(`busy-hours-heatmap-${reportType}-${selectedDate}`);
+    const hourBuckets = [11, 13, 15, 17, 19, 21, 23];
+    const hours = hourBuckets.map(h => `${String(h).padStart(2, "0")}:00`);
 
+    const counts: number[][] = days.map(() => hourBuckets.map(() => 0));
+
+    parsedData.bills.forEach(b => {
+      const d = new Date(b.created_at);
+      const dIdx = d.getDay();
+      const h = d.getHours();
+      // Pick nearest hour bucket
+      let hIdx = 0;
+      let bestDist = Infinity;
+      hourBuckets.forEach((hb, i) => {
+        const dist = Math.abs(hb - h);
+        if (dist < bestDist) { bestDist = dist; hIdx = i; }
+      });
+      counts[dIdx][hIdx] += 1;
+    });
+
+    const maxCount = Math.max(1, ...counts.flat());
+
+    const grid: { day: string; hour: string; intensity: number; val: number }[] = [];
     days.forEach((day, dIdx) => {
       hours.forEach((hour, hIdx) => {
-        // High dining peak multipliers (Lunch times 13:00 / Dinner times 19:00 - 21:00)
-        let coef = storeBills.length === 0 ? 0 : 0.2 + rng() * 0.5;
-        if (storeBills.length > 0 && (hour === "13:00" || hour === "19:00" || hour === "21:00")) {
-          coef += 0.45;
-        }
-        if (storeBills.length > 0 && (dIdx === 5 || dIdx === 6 || dIdx === 0)) { // Weekends
-          coef += 0.25;
-        }
+        const val = counts[dIdx][hIdx];
         grid.push({
           day,
           hour,
-          intensity: Math.min(1, coef),
-          val: Math.floor(coef * 12)
+          intensity: val / maxCount,
+          val,
         });
       });
     });
 
     return { grid, days, hours };
-  }, [reportType, selectedDate, storeBills]);
+  }, [parsedData.bills]);
 
   // Filtered Item Analytics sorting & pagination
   const sortedAndPaginatedItems = useMemo(() => {
