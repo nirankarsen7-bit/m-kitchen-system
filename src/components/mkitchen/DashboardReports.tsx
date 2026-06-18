@@ -34,6 +34,7 @@ export const DashboardReports: React.FC = () => {
   const storeOrders = useStore(state => state.orders);
   const storeOrderItems = useStore(state => state.orderItems);
   const supplierPayments = useStore(state => state.supplierPayments);
+  const couponSettings = useStore(state => state.couponSettings);
 
   // States
   const [reportType, setReportType] = useState<"Daily" | "Weekly" | "Monthly" | "Yearly" | "Custom">("Daily");
