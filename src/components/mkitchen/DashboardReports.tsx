@@ -62,13 +62,13 @@ export const DashboardReports: React.FC = () => {
   const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
   const [isExportingCSV, setIsExportingCSV] = useState<boolean>(false);
 
-  // High-fidelity fully-deterministic dataset constructor
+  // Strict real-data dataset constructor — no synthetic / random seed history.
+  // This is a financial section: only actual checkout bills and recorded
+  // stock purchases inside the selected window are included.
   const parsedData = useMemo(() => {
-    // Determine the exact timeframe
     let startMs = 0;
     let endMs = 0;
-    const refDate = new Date(selectedDate);
-    
+
     if (reportType === "Daily") {
       const [year, month, day] = selectedDate.split("-").map(Number);
       startMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
@@ -104,146 +104,27 @@ export const DashboardReports: React.FC = () => {
       endMs = Date.UTC(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
     }
 
-    // 1. Gather all raw bills & Purchases from store
-    const activeStoreBills = storeBills.filter(b => {
-      const t = new Date(b.created_at).getTime();
-      return t >= startMs && t <= endMs;
-    });
+    const finalBills = storeBills
+      .filter(b => {
+        const t = new Date(b.created_at).getTime();
+        return t >= startMs && t <= endMs;
+      })
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-    const activeStorePurchases = storePurchases.filter(s => {
-      const t = new Date(s.date).getTime();
-      return t >= startMs && t <= endMs;
-    });
-
-    // 2. Synthesize seed history if ledger is thin/shallow to maintain the "perfect presentation"
-    const totalActualBills = storeBills.length;
-    let seedBills: Bill[] = [];
-    let seedPurchases: StockPurchase[] = [];
-
-    // Always generate deterministic simulation curves based on seed string parameters
-    const rng = createRng(`maharaji-finances-${reportType}-${selectedDate}`);
-    const daysInterval = Math.ceil((endMs - startMs) / 86400000);
-    
-    // Generate realistic historical daily curves
-    for (let i = 0; i < daysInterval; i++) {
-      const dayMs = startMs + i * 86400000;
-      const dayIso = new Date(dayMs).toISOString().slice(0, 10);
-      
-      // Determine day multipliers (Weekends are busiest, e.g. Fri/Sat/Sun have higher coefficients)
-      const dayOfWeek = new Date(dayMs).getDay(); // 0 Sunday, 6 Saturday
-      const coefficient = (dayOfWeek === 0 || dayOfWeek === 6 || dayOfWeek === 5) ? 1.45 : 0.85;
-      
-      // Daily bills count: usually between 8 and 18 tickets
-      const ticketsCount = Math.floor(8 + rng() * 12 * coefficient);
-      
-      for (let t = 0; t < ticketsCount; t++) {
-        const ticketRng = rng();
-        // Base checkout prices structured symmetrically mimicking actual menu
-        let subtotal = 150 + Math.floor(ticketRng * 1600);
-        let discount = 0;
-        let couponCode: string | null = null;
-        
-        if (subtotal > 1000 && ticketRng > 0.4) {
-          discount = Math.floor(subtotal * 0.15);
-          couponCode = ticketRng > 0.75 ? "ROYALFEAST" : "WELCOME100";
-        } else if (subtotal > 500 && ticketRng > 0.7) {
-          discount = 100;
-          couponCode = "WELCOME100";
-        }
-        
-        const total = Math.max(50, subtotal - discount);
-        const seqNum = String(t + 1).padStart(4, "0");
-        const dateString = dayIso.replace(/-/g, "");
-        const billNumber = `MK-${dateString}-${seqNum}`;
-        
-        const table_number = Math.floor(1 + ticketRng * 20);
-        // Space transaction across standard dining hours (11:00 AM - 11:00 PM)
-        const hour = Math.floor(11 + ticketRng * 12);
-        const minute = Math.floor(ticketRng * 60);
-        const timestamp = `${dayIso}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00.000Z`;
-        
-        seedBills.push({
-          id: `seed-bill-${dayIso}-${t}`,
-          bill_number: billNumber,
-          table_number,
-          subtotal,
-          coupon_code: couponCode,
-          discount,
-          total,
-          created_at: timestamp,
-          closed_at: timestamp
-        });
-      }
-
-      // Daily stock purchase materials
-      if (i % 2 === 0 || rng() > 0.6) {
-        const ingredients = [
-          { name: "Premium Paneer", unit: "kg", price: 380, count: 5 + Math.floor(rng() * 10), supplier: "Doon Farms Dairy" },
-          { name: "Aged Basmati Rice", unit: "kg", price: 160, count: 10 + Math.floor(rng() * 15), supplier: "Siliguri Grain Corp" },
-          { name: "Pure Saffron Stigmas", unit: "g", price: 320, count: 2 + Math.floor(rng() * 5), supplier: "Kashmir Spices Ltd" },
-          { name: "Amul Fresh Butter", unit: "packs", price: 275, count: 8 + Math.floor(rng() * 12), supplier: "NH31 Dairy Agency" },
-          { name: "LPG Gas Cylinder 19k", unit: "cyl", price: 1850, count: 1 + Math.floor(rng() * 2), supplier: "Indane Commercial" }
-        ];
-
-        const selectedIng = ingredients[Math.floor(rng() * ingredients.length)];
-        const qty = selectedIng.count;
-        const purchaseTotal = qty * selectedIng.price;
-        const purchaseHour = Math.floor(8 + rng() * 3); // Morning deliveries
-        const purchaseTimestamp = `${dayIso}T${String(purchaseHour).padStart(2, "0")}:00:00.000Z`;
-
-        seedPurchases.push({
-          id: `seed-stock-${dayIso}-${i}`,
-          date: purchaseTimestamp,
-          item_name: selectedIng.name,
-          quantity: qty,
-          unit: selectedIng.unit,
-          unit_price: selectedIng.price,
-          total: purchaseTotal,
-          supplier: selectedIng.supplier,
-          notes: "Gourmet Grade Inventory Restock"
-        });
-      }
-    }
-
-    // Extract unique dates of actual checkouts in local/UTC slices safely (first 10 chars "YYYY-MM-DD")
-    const actualBillDates = new Set(activeStoreBills.map(b => b.created_at.slice(0, 10)));
-    
-    // Seed history filters out seed days where we already have actual store transactions
-    const filteredSeedBills = seedBills.filter(b => {
-      const bDate = b.created_at.slice(0, 10);
-      const inRange = new Date(b.created_at).getTime() >= startMs && new Date(b.created_at).getTime() <= endMs;
-      return inRange && !actualBillDates.has(bDate);
-    });
-
-    // Merge real bills with seed data for demo purposes
-    // Always include activeStoreBills (real checkout bills) + seed bills for dates without real data
-    const finalBills = [...activeStoreBills, ...filteredSeedBills];
-
-    // Same logic for stock purchases
-    const actualPurchaseDates = new Set(activeStorePurchases.map(p => p.date.slice(0, 10)));
-
-    const filteredSeedPurchases = seedPurchases.filter(p => {
-      const pDate = p.date.slice(0, 10);
-      const inRange = new Date(p.date).getTime() >= startMs && new Date(p.date).getTime() <= endMs;
-      return inRange && !actualPurchaseDates.has(pDate);
-    });
-
-    const finalPurchases = storePurchases.length === 0
-      ? []
-      : [...activeStorePurchases, ...filteredSeedPurchases];
-
-    // Sort ascending for clean charts render
-    finalBills.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    finalPurchases.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const finalPurchases = storePurchases
+      .filter(s => {
+        const t = new Date(s.date).getTime();
+        return t >= startMs && t <= endMs;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
       bills: finalBills,
       purchases: finalPurchases,
       startMs,
       endMs,
-      rng
     };
-  }, [selectedDate, reportType, customStartDate, customEndDate, storeBills, storePurchases, storeOrders, storeOrderItems]);
+  }, [selectedDate, reportType, customStartDate, customEndDate, storeBills, storePurchases]);
 
   // Compute metrics with filters applied
   const filteredData = useMemo(() => {
