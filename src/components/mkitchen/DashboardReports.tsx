@@ -169,46 +169,25 @@ export const DashboardReports: React.FC = () => {
     const netProfit = totalRevenue - totalExpenses;
     const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Top Selling item calculations
-    // To present pristine live telemetry, we map confirmed orders or generate cohesive distribution
+    // Per-dish sales — strictly from confirmed order items linked to bills in scope.
     const dishSales: Record<string, { qty: number; revenue: number; image: string; category: string }> = {};
-    
-    // Seed standard initial values
     storeMenuItems.forEach(item => {
       const cat = storeCategories.find(c => c.id === item.category_id)?.name || "Main Course";
       dishSales[item.name] = { qty: 0, revenue: 0, image: item.image_url, category: cat };
     });
 
-    // Populate using bills scale deterministically
-    billsList.forEach((bill, idx) => {
-      // If it is a real checkout, lookup its matched live ordered items
-      if (bill.id && !bill.id.startsWith("seed-bill-")) {
-        const matchedItems = storeOrderItems.filter(oi => oi.order_id === bill.order_id);
-        if (matchedItems.length > 0) {
-          matchedItems.forEach(oi => {
-            const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-            if (mItem && dishSales[mItem.name]) {
-              dishSales[mItem.name].qty += oi.quantity;
-              dishSales[mItem.name].revenue += oi.quantity * oi.price;
-            }
-          });
-          return; // Skip fallback random generator for this actual bill
+    billsList.forEach(bill => {
+      if (!bill.order_id) return;
+      const matchedItems = storeOrderItems.filter(
+        oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED
+      );
+      matchedItems.forEach(oi => {
+        const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+        if (mItem && dishSales[mItem.name]) {
+          dishSales[mItem.name].qty += oi.quantity;
+          dishSales[mItem.name].revenue += oi.quantity * oi.price;
         }
-      }
-
-      // Default deterministic rendering for simulated legacy seeds
-      const rngItem = createRng(`dish-sales-aggregation-${bill.id}-${idx}`);
-      // Each bill contains 1 to 5 random dishes
-      const dishesPurchased = Math.floor(1 + rngItem() * 4);
-      for (let d = 0; d < dishesPurchased; d++) {
-        const itemIdx = Math.floor(rngItem() * storeMenuItems.length);
-        const item = storeMenuItems[itemIdx];
-        if (item) {
-          const qty = Math.floor(1 + rngItem() * 3);
-          dishSales[item.name].qty += qty;
-          dishSales[item.name].revenue += qty * item.price;
-        }
-      }
+      });
     });
 
     const itemsAnalyticsList = Object.entries(dishSales)
