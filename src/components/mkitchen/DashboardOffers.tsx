@@ -291,94 +291,108 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
 
       {/* ===== LEFT DEEP MAROON BRAND PANEL ===== */}
       <div className="absolute left-0 top-0 h-full w-[40%] overflow-hidden">
+        {/* Rich maroon velvet base */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(135deg, #4A0710 0%, #2E0408 55%, #150103 100%)",
+              "radial-gradient(ellipse at 30% 20%, #6B0F1C 0%, #3A0710 45%, #1A0205 100%)",
           }}
         />
+        {/* Soft gold halo behind the medallion */}
         <div
-          className="absolute inset-0 opacity-50"
+          className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 30% 25%, rgba(245,220,138,0.22), transparent 65%)",
+              "radial-gradient(circle at 50% 48%, rgba(245,220,138,0.30) 0%, rgba(245,220,138,0.10) 30%, transparent 60%)",
           }}
         />
-        {/* light watermark logo (background) */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <img
-            src={BRAND_LOGO_URL}
-            alt=""
-            aria-hidden
-            className="w-[125%] max-w-none object-contain"
-            style={{
-              filter: "brightness(0) invert(1)",
-              opacity: 0.08,
-              transform: "scale(1.15)",
-            }}
-          />
-        </div>
-        {/* damask diamond fleck */}
+        {/* Damask diamond fleck overlay */}
         <div
-          className="absolute inset-0 opacity-[0.10]"
+          className="absolute inset-0 opacity-[0.09]"
           style={{
             backgroundImage:
               "repeating-linear-gradient(45deg, transparent 0 10px, #F5DC8A 10px 11px), repeating-linear-gradient(-45deg, transparent 0 10px, #F5DC8A 10px 11px)",
           }}
         />
-        {/* gold vertical divider */}
+
+        {/* Inner gold border frame */}
+        <div
+          className="absolute inset-[6%] rounded-xl pointer-events-none"
+          style={{
+            border: "1px solid rgba(245,220,138,0.35)",
+            boxShadow:
+              "inset 0 0 0 1px rgba(139,101,8,0.4), 0 0 24px rgba(245,220,138,0.08)",
+          }}
+        />
+
+        {/* Gold vertical divider with glow */}
         <div
           className="absolute right-0 top-0 h-full w-[6px]"
           style={{
-            background: "linear-gradient(to bottom, #F5DC8A, #C9A227, #8B6508)",
-            boxShadow: "0 0 14px rgba(212,162,39,0.7)",
+            background:
+              "linear-gradient(to bottom, transparent 0%, #F5DC8A 10%, #D4AF37 50%, #C9A227 90%, transparent 100%)",
+            boxShadow: "0 0 18px rgba(212,162,39,0.8)",
           }}
         />
-        <div className="absolute right-[10px] top-[8%] bottom-[8%] w-px" style={{ background: "rgba(245,220,138,0.45)" }} />
+        <div
+          className="absolute right-[10px] top-[8%] bottom-[8%] w-px"
+          style={{ background: "rgba(245,220,138,0.45)" }}
+        />
 
-        {/* Foreground logo + brand */}
+        {/* Foreground real brand medallion (colored, not filtered) */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
-          <img
-            src={BRAND_LOGO_URL}
-            alt="Maharaji Kitchen"
-            className="w-[68%] max-w-[170px] mx-auto object-contain"
-            style={{
-              filter:
-                "brightness(0) invert(1) drop-shadow(0 0 18px rgba(245,220,138,0.65)) drop-shadow(0 3px 5px rgba(0,0,0,0.6))",
-            }}
-          />
-          <div className="mt-3 leading-none">
+          <div
+            className="relative flex items-center justify-center"
+            style={{ width: "82%", aspectRatio: "1" }}
+          >
+            {/* Glow disc behind logo */}
             <div
-              className="font-serif font-black tracking-[0.05em]"
+              className="absolute inset-[6%] rounded-full"
               style={{
-                fontSize: "clamp(14px, 2.7vw, 28px)",
+                background:
+                  "radial-gradient(circle, rgba(245,220,138,0.45) 0%, rgba(245,220,138,0.12) 45%, transparent 70%)",
+                filter: "blur(6px)",
+              }}
+            />
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Maharaji Kitchen"
+              crossOrigin="anonymous"
+              className="relative w-full h-full object-contain"
+              style={{
+                filter:
+                  "drop-shadow(0 6px 14px rgba(0,0,0,0.75)) drop-shadow(0 0 18px rgba(245,220,138,0.35))",
+              }}
+            />
+          </div>
+
+          {/* Royal tagline ribbon */}
+          <div
+            className="mt-2 flex items-center justify-center gap-1.5"
+            style={{ color: "rgba(245,220,138,0.95)" }}
+          >
+            <span
+              className="h-px w-8"
+              style={{ background: "linear-gradient(to right, transparent, #C9A227)" }}
+            />
+            <span
+              className="text-[8px] tracking-[0.32em] uppercase font-semibold"
+              style={{
                 color: "#F5DC8A",
-                textShadow:
-                  "0 1px 0 #C9A227, 0 2px 0 #8B6508, 0 3px 0 #5C4033, 0 4px 6px rgba(0,0,0,0.6), 0 0 14px rgba(245,220,138,0.4)",
-                WebkitTextStroke: "0.5px #8B6508",
+                textShadow: "0 1px 2px rgba(0,0,0,0.8)",
               }}
             >
-              MAHARAJI
-            </div>
-            <div
-              className="font-serif tracking-[0.34em] mt-1"
-              style={{
-                fontSize: "clamp(8px, 1.3vw, 13px)",
-                color: "#FAF6EC",
-                textShadow: "0 1px 2px rgba(0,0,0,0.7)",
-              }}
-            >
-              KITCHEN
-            </div>
-            <div className="mt-1.5 flex items-center justify-center gap-1.5" style={{ color: "rgba(245,220,138,0.85)" }}>
-              <span className="h-px w-6" style={{ background: "rgba(201,162,39,0.65)" }} />
-              <span className="text-[8px] tracking-[0.3em] uppercase">A Family Restaurant</span>
-              <span className="h-px w-6" style={{ background: "rgba(201,162,39,0.65)" }} />
-            </div>
+              Royal Taste · Royal Feast
+            </span>
+            <span
+              className="h-px w-8"
+              style={{ background: "linear-gradient(to left, transparent, #C9A227)" }}
+            />
           </div>
         </div>
       </div>
+
 
       {/* perforated tear line */}
       <div
