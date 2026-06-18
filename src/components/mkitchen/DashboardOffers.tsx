@@ -45,7 +45,7 @@ const drawCenteredImage = (ctx: CanvasRenderingContext2D, image: HTMLImageElemen
   ctx.drawImage(image, cx - width / 2, cy - height / 2, width, height);
 };
 
-const downloadCouponAsJpg = async ({ code, discount, usedCount }: CouponDownloadData) => {
+const downloadCouponAsJpg = async ({ code, discount, usedCount, minPurchase }: CouponDownloadData) => {
   const logo = await loadCouponLogo();
   const canvas = document.createElement("canvas");
   const width = 1800;
