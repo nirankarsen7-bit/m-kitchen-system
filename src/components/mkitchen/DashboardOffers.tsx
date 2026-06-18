@@ -450,7 +450,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
           </p>
           <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" style={{ color: "#5C4033", fontSize: "clamp(7px, 0.95vw, 10px)" }}>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Dine-in &amp; Takeaway</li>
-            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> No Minimum Bill</li>
+            <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> {minBillLabel}</li>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Valid Once Per Bill</li>
             <li className="flex items-center gap-1"><span style={{ color: "#C9A227" }}>◆</span> Across All Menus</li>
           </ul>
