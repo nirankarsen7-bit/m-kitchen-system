@@ -527,7 +527,25 @@ export const DashboardStock: React.FC = () => {
                                 <IndianRupee className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {/* Point 5: Once a purchase is recorded, it cannot be deleted (audit-safe). */}
+                            {/* Admin-only: edit & delete purchase entry */}
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(s.id)}
+                                  className="p-1 rounded bg-gold-rich/10 text-maroon-royal hover:bg-gold-rich/20 cursor-pointer"
+                                  title="Edit Purchase"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteStock(s.id)}
+                                  className="p-1 rounded bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
+                                  title="Delete Purchase"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );
