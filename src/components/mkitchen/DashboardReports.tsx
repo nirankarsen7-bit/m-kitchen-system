@@ -140,23 +140,12 @@ export const DashboardReports: React.FC = () => {
     if (filterItemName.trim()) {
       const searchLower = filterItemName.toLowerCase();
       resultBills = resultBills.filter(b => {
-        // For real bills with order_id, check actual order items
-        if (b.id && !b.id.startsWith("seed-bill-") && b.order_id) {
-          const matchedItems = storeOrderItems.filter(oi => oi.order_id === b.order_id);
-          return matchedItems.some(oi => {
-            const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-            return mItem && mItem.name.toLowerCase().includes(searchLower);
-          });
-        }
-        // For seed bills, use deterministic matching based on bill properties
-        const rng = createRng(`item-filter-${b.id}-${filterItemName}`);
-        const dishesCount = Math.floor(1 + rng() * 4);
-        for (let d = 0; d < dishesCount; d++) {
-          const itemIdx = Math.floor(rng() * storeMenuItems.length);
-          const item = storeMenuItems[itemIdx];
-          if (item && item.name.toLowerCase().includes(searchLower)) return true;
-        }
-        return false;
+        if (!b.order_id) return false;
+        const matchedItems = storeOrderItems.filter(oi => oi.order_id === b.order_id);
+        return matchedItems.some(oi => {
+          const mItem = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+          return mItem && mItem.name.toLowerCase().includes(searchLower);
+        });
       });
     }
 
