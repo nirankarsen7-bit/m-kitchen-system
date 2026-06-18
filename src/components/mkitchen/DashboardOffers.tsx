@@ -263,8 +263,10 @@ interface VoucherProps {
   code: string;
   discount: number;
   usedCount: number;
+  minPurchase: number;
 }
-const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, discount, usedCount }, ref) => {
+const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, discount, usedCount, minPurchase }, ref) => {
+  const minBillLabel = minPurchase > 0 ? `Min Bill ₹${minPurchase}` : "No Minimum Bill";
   return (
     <div
       ref={ref}
