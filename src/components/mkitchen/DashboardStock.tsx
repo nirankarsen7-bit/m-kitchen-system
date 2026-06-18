@@ -49,6 +49,15 @@ export const DashboardStock: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState("all");
 
+  // Edit Stock Modal States (Admin only)
+  const [editStockId, setEditStockId] = useState<string | null>(null);
+  const [editItemName, setEditItemName] = useState("");
+  const [editQty, setEditQty] = useState("");
+  const [editUnit, setEditUnit] = useState("kg");
+  const [editUnitPrice, setEditUnitPrice] = useState("");
+  const [editSupplier, setEditSupplier] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
