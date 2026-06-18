@@ -555,15 +555,20 @@ export const DashboardOffers: React.FC = () => {
   const handleSaveCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(coupValue);
+    const minP = parseFloat(coupMinPurchase) || 0;
     if (!coupCode.trim() || isNaN(val) || val <= 0) {
       toast.error("Please enter a valid code and discount amount!");
+      return;
+    }
+    if (minP < 0) {
+      toast.error("Minimum purchase cannot be negative.");
       return;
     }
     addCoupon({
       code: coupCode.trim().toUpperCase(),
       discount_type: "flat",
       discount: val,
-      min_purchase: 0,
+      min_purchase: minP,
       linked_bill_id: null,
       valid_from: new Date().toISOString(),
       valid_to: new Date(Date.now() + 86400000 * 365).toISOString(),
@@ -571,7 +576,7 @@ export const DashboardOffers: React.FC = () => {
       is_enabled: true,
       used_bill_ids: [],
     });
-    setCoupCode(""); setCoupValue(""); setIsCoupModalOpen(false);
+    setCoupCode(""); setCoupValue(""); setCoupMinPurchase(""); setIsCoupModalOpen(false);
     toast.success("Special Discount Coupon created!");
   };
 
