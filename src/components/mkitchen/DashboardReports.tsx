@@ -233,77 +233,72 @@ export const DashboardReports: React.FC = () => {
     };
   }, [filteredData, parsedData.purchases, storeMenuItems, storeCategories, supplierPayments]);
 
-  // Historical Comparisons totals
+  // Historical Comparisons — strictly real data. If no prior period data
+  // exists, prior values stay 0. This is a financial section: no fake fills.
   const comparisonTotals = useMemo(() => {
-    // Generate deterministic values for prior periods to formulate trend coefficients
-    const refSeed = `comparison-${reportType}-${selectedDate}`;
-    const rng = createRng(refSeed);
-    
-    let comparisonLabel = "";
+    let comparisonLabel = "vs Last Year";
+    let priorStartMs = 0;
+    let priorEndMs = 0;
+
     if (reportType === "Daily") {
       comparisonLabel = "vs Yesterday";
+      const d = new Date(parsedData.startMs);
+      d.setUTCDate(d.getUTCDate() - 1);
+      priorStartMs = d.getTime();
+      const e = new Date(parsedData.endMs);
+      e.setUTCDate(e.getUTCDate() - 1);
+      priorEndMs = e.getTime();
     } else if (reportType === "Weekly") {
       comparisonLabel = "vs Last Week";
+      priorStartMs = parsedData.startMs - 7 * 86400000;
+      priorEndMs = parsedData.endMs - 7 * 86400000;
     } else if (reportType === "Monthly" || reportType === "Custom") {
-      comparisonLabel = "vs Last Month";
+      comparisonLabel = "vs Last Period";
+      const span = parsedData.endMs - parsedData.startMs;
+      priorStartMs = parsedData.startMs - span - 1;
+      priorEndMs = parsedData.startMs - 1;
     } else {
       comparisonLabel = "vs Last Year";
+      const d = new Date(parsedData.startMs);
+      d.setUTCFullYear(d.getUTCFullYear() - 1);
+      priorStartMs = d.getTime();
+      const e = new Date(parsedData.endMs);
+      e.setUTCFullYear(e.getUTCFullYear() - 1);
+      priorEndMs = e.getTime();
     }
 
-    if (storeBills.length === 0) {
-      return {
-        priorRevenue: 0,
-        percentage: 0,
-        label: comparisonLabel,
-        todaySales: 0,
-        yesterdaySales: 0,
-        todayDiff: 0,
-        thisWeekSales: 0,
-        lastWeekSales: 0,
-        weekDiff: 0,
-        thisMonthSales: 0,
-        lastMonthSales: 0,
-        monthDiff: 0
-      };
-    }
-    
-    const multipliers = {
-      Today: 0.88 + rng() * 0.24,
-      Yesterday: 0.85 + rng() * 0.2,
-      ThisWeek: 0.9 + rng() * 0.25,
-      LastWeek: 0.82 + rng() * 0.2,
-      ThisMonth: 0.92 + rng() * 0.2,
-      LastMonth: 0.88 + rng() * 0.18
-    };
+    const sumBillsBetween = (start: number, end: number) =>
+      storeBills.reduce((sum, b) => {
+        const t = new Date(b.created_at).getTime();
+        return (t >= start && t <= end) ? sum + b.total : sum;
+      }, 0);
 
     const currentRevenue = metrics.totalRevenue;
-    let priorRevenue = currentRevenue * 0.91; // Default fallbacks
-
-    if (reportType === "Daily") {
-      priorRevenue = Math.max(5000, currentRevenue * multipliers.Yesterday);
-    } else if (reportType === "Weekly") {
-      priorRevenue = Math.max(35000, currentRevenue * multipliers.LastWeek);
-    } else if (reportType === "Monthly" || reportType === "Custom") {
-      priorRevenue = Math.max(150000, currentRevenue * multipliers.LastMonth);
-    } else {
-      priorRevenue = Math.max(1800000, currentRevenue * 0.89);
-    }
-
+    const priorRevenue = sumBillsBetween(priorStartMs, priorEndMs);
     const percentage = priorRevenue > 0 ? ((currentRevenue - priorRevenue) / priorRevenue) * 100 : 0;
 
-    // Today vs Yesterday precise numbers
-    const todaySales = reportType === "Daily" ? currentRevenue : 22450 + Math.floor(rng() * 15000);
-    const yesterdaySales = reportType === "Daily" ? priorRevenue : 19800 + Math.floor(rng() * 12000);
+    const now = new Date();
+    const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0);
+    const todayEnd = todayStart + 86400000 - 1;
+    const yesterdayStart = todayStart - 86400000;
+    const yesterdayEnd = todayStart - 1;
+    const thisWeekStart = todayStart - 6 * 86400000;
+    const lastWeekStart = thisWeekStart - 7 * 86400000;
+    const lastWeekEnd = thisWeekStart - 1;
+    const thisMonthStart = todayStart - 29 * 86400000;
+    const lastMonthEnd = thisMonthStart - 1;
+    const lastMonthStart = lastMonthEnd - 29 * 86400000;
+
+    const todaySales = sumBillsBetween(todayStart, todayEnd);
+    const yesterdaySales = sumBillsBetween(yesterdayStart, yesterdayEnd);
     const todayDiff = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0;
 
-    // This Week vs Last Week
-    const thisWeekSales = reportType === "Weekly" ? currentRevenue : 145200 + Math.floor(rng() * 80000);
-    const lastWeekSales = reportType === "Weekly" ? priorRevenue : 138000 + Math.floor(rng() * 60000);
+    const thisWeekSales = sumBillsBetween(thisWeekStart, todayEnd);
+    const lastWeekSales = sumBillsBetween(lastWeekStart, lastWeekEnd);
     const weekDiff = lastWeekSales > 0 ? ((thisWeekSales - lastWeekSales) / lastWeekSales) * 100 : 0;
 
-    // This Month vs Last Month
-    const thisMonthSales = reportType === "Monthly" ? currentRevenue : 589000 + Math.floor(rng() * 200000);
-    const lastMonthSales = reportType === "Monthly" ? priorRevenue : 542000 + Math.floor(rng() * 150000);
+    const thisMonthSales = sumBillsBetween(thisMonthStart, todayEnd);
+    const lastMonthSales = sumBillsBetween(lastMonthStart, lastMonthEnd);
     const monthDiff = lastMonthSales > 0 ? ((thisMonthSales - lastMonthSales) / lastMonthSales) * 100 : 0;
 
     return {
@@ -318,27 +313,30 @@ export const DashboardReports: React.FC = () => {
       weekDiff,
       thisMonthSales,
       lastMonthSales,
-      monthDiff
+      monthDiff,
     };
-  }, [metrics.totalRevenue, reportType, selectedDate, storeBills]);
+  }, [metrics.totalRevenue, reportType, parsedData.startMs, parsedData.endMs, storeBills]);
 
-  // Aggregate Sparkline data-points for KPI cards
+  // Sparkline data — real per-day buckets from the last 12 days (or 12 buckets
+  // covering the current window). No synthetic values.
   const sparklines = useMemo(() => {
-    // Generate 12 sequential items tracking daily curves
-    const rng = createRng(`kpi-sparkline-${reportType}-${selectedDate}`);
-    if (storeBills.length === 0) {
-      return {
-        bills: Array.from({ length: 12 }, () => 0),
-        revenue: Array.from({ length: 12 }, () => 0),
-        avgBill: Array.from({ length: 12 }, () => 0)
-      };
-    }
-    return {
-      bills: Array.from({ length: 12 }, () => Math.floor(5 + rng() * 15)),
-      revenue: Array.from({ length: 12 }, () => Math.floor(2000 + rng() * 8000)),
-      avgBill: Array.from({ length: 12 }, () => Math.floor(350 + rng() * 600))
-    };
-  }, [reportType, selectedDate, storeBills]);
+    const buckets = 12;
+    const span = Math.max(1, parsedData.endMs - parsedData.startMs);
+    const bucketSize = span / buckets;
+    const billsArr = Array.from({ length: buckets }, () => 0);
+    const revenueArr = Array.from({ length: buckets }, () => 0);
+
+    parsedData.bills.forEach(b => {
+      const t = new Date(b.created_at).getTime();
+      const idx = Math.min(buckets - 1, Math.max(0, Math.floor((t - parsedData.startMs) / bucketSize)));
+      billsArr[idx] += 1;
+      revenueArr[idx] += b.total;
+    });
+
+    const avgBillArr = billsArr.map((c, i) => (c > 0 ? Math.round(revenueArr[i] / c) : 0));
+
+    return { bills: billsArr, revenue: revenueArr.map(v => Math.round(v)), avgBill: avgBillArr };
+  }, [parsedData.bills, parsedData.startMs, parsedData.endMs]);
 
   // Chart 1 & Chart 7 timescale structures (Revenue Trend + P&L Areas)
   const timeSeriesChartData = useMemo(() => {
