@@ -267,6 +267,7 @@ interface AppState {
   // Stock tracking
   stockPurchases: StockPurchase[];
   addStockEntry: (entry: Omit<StockPurchase, "id" | "total">) => void;
+  editStockEntry: (id: string, updates: Partial<Omit<StockPurchase, "id" | "total">>) => void;
   deleteStockEntry: (id: string) => void;
 
   // Material usage tracking (F11)
