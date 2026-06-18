@@ -4,10 +4,11 @@ import { UserRole } from "@/lib/mk-types";
 import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Settings, Share2, Crown, Power, Download, TicketCheck, BarChart3 } from "lucide-react";
+import brandLogoAsset from "@/assets/maharaji-brand-logo.png.asset.json";
 
-// Brand logo URL — same chef medallion used in MaharajiLogo. CDN-hosted so it
-// loads identically across preview and Cloudflare published builds.
-const BRAND_LOGO_URL = "https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png";
+// Brand logo URL — official Maharaji Kitchen medallion served from Lovable CDN
+// so it renders identically in preview and Cloudflare published builds.
+const BRAND_LOGO_URL = brandLogoAsset.url;
 
 type CouponDownloadData = {
   code: string;
