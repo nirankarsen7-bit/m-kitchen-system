@@ -518,6 +518,7 @@ export const DashboardOffers: React.FC = () => {
   const [isCoupModalOpen, setIsCoupModalOpen] = useState(false);
   const [coupCode, setCoupCode] = useState("");
   const [coupValue, setCoupValue] = useState("");
+  const [coupMinPurchase, setCoupMinPurchase] = useState("");
 
   const [minPurchaseForCoupon, setMinPurchaseForCoupon] = useState(couponSettings.min_purchase_for_coupon.toString());
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(couponSettings.coupon_discount_percent.toString());
