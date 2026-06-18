@@ -304,7 +304,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
         {/* light watermark logo (background) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <img
-            src={logoOutlineAsset.url}
+            src={BRAND_LOGO_URL}
             alt=""
             aria-hidden
             className="w-[125%] max-w-none object-contain"
@@ -336,7 +336,7 @@ const VoucherCard = React.forwardRef<HTMLDivElement, VoucherProps>(({ code, disc
         {/* Foreground logo + brand */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
           <img
-            src={logoOutlineAsset.url}
+            src={BRAND_LOGO_URL}
             alt="Maharaji Kitchen"
             className="w-[68%] max-w-[170px] mx-auto object-contain"
             style={{
