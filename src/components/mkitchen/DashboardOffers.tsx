@@ -4,12 +4,16 @@ import { UserRole } from "@/lib/mk-types";
 import { Button, Card, FormInput } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Eye, Sparkles, ArrowRight, Settings, Share2, Crown, Power, Download, TicketCheck, BarChart3 } from "lucide-react";
-import logoOutlineAsset from "@/assets/logo_outline.png.asset.json";
+
+// Brand logo URL — same chef medallion used in MaharajiLogo. CDN-hosted so it
+// loads identically across preview and Cloudflare published builds.
+const BRAND_LOGO_URL = "https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png";
 
 type CouponDownloadData = {
   code: string;
   discount: number;
   usedCount: number;
+  minPurchase: number;
 };
 
 const loadCouponLogo = () => new Promise<HTMLImageElement | null>((resolve) => {
@@ -17,7 +21,7 @@ const loadCouponLogo = () => new Promise<HTMLImageElement | null>((resolve) => {
   image.crossOrigin = "anonymous";
   image.onload = () => resolve(image);
   image.onerror = () => resolve(null);
-  image.src = logoOutlineAsset.url;
+  image.src = BRAND_LOGO_URL;
 });
 
 const roundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
