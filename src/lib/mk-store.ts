@@ -642,6 +642,9 @@ export const useStore = create<AppState>((set, get) => {
         if (currentBillId && (coupon.used_bill_ids || []).includes(currentBillId)) {
           return { valid: false, discountAmount: 0, error: "This coupon has already been used for this bill." };
         }
+        if ((coupon.min_purchase || 0) > 0 && totalAmount < coupon.min_purchase) {
+          return { valid: false, discountAmount: 0, error: `Minimum purchase of ₹${coupon.min_purchase} required to use this coupon.` };
+        }
         const flat = Math.min(coupon.discount, totalAmount);
         return { valid: true, discountAmount: flat };
       }
