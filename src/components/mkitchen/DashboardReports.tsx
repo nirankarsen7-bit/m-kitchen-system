@@ -683,50 +683,19 @@ export const DashboardReports: React.FC = () => {
     );
   };
 
-  // Point 1: per-bill item breakdown helper (works for real + seed bills)
+  // Per-bill item breakdown helper — real data only.
   const getBillItems = (bill: Bill): { name: string; qty: number; rate: number; amount: number }[] => {
-    // Real checkout: pull from actual confirmed order items
-    if (bill.id && !bill.id.startsWith("seed-bill-") && bill.order_id) {
-      const items = storeOrderItems.filter(oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED);
-      if (items.length > 0) {
-        return items.map(oi => {
-          const m = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
-          return {
-            name: m?.name || "Item",
-            qty: oi.quantity,
-            rate: +oi.price.toFixed(2),
-            amount: +(oi.price * oi.quantity).toFixed(2),
-          };
-        });
-      }
-    }
-    // Seed bill: deterministic items reconciled to bill.subtotal
-    const rngI = createRng(`bill-items-detail-${bill.id}`);
-    const dishesCount = Math.max(1, Math.floor(1 + rngI() * 4));
-    const lines: { name: string; qty: number; rate: number; amount: number }[] = [];
-    let allocated = 0;
-    for (let d = 0; d < dishesCount; d++) {
-      const idx = Math.floor(rngI() * storeMenuItems.length);
-      const item = storeMenuItems[idx];
-      if (!item) continue;
-      const qty = Math.max(1, Math.floor(1 + rngI() * 3));
-      const amount = item.price * qty;
-      lines.push({ name: item.name, qty, rate: item.price, amount });
-      allocated += amount;
-    }
-    if (lines.length === 0 && storeMenuItems[0]) {
-      lines.push({ name: storeMenuItems[0].name, qty: 1, rate: storeMenuItems[0].price, amount: storeMenuItems[0].price });
-      allocated = storeMenuItems[0].price;
-    }
-    // Scale prices proportionally so lines reconcile to bill.subtotal
-    if (allocated > 0 && bill.subtotal > 0) {
-      const scale = bill.subtotal / allocated;
-      lines.forEach(l => {
-        l.rate = +(l.rate * scale).toFixed(2);
-        l.amount = +(l.qty * l.rate).toFixed(2);
-      });
-    }
-    return lines;
+    if (!bill.order_id) return [];
+    const items = storeOrderItems.filter(oi => oi.order_id === bill.order_id && oi.status === OrderItemStatus.CONFIRMED);
+    return items.map(oi => {
+      const m = storeMenuItems.find(mi => mi.id === oi.menu_item_id);
+      return {
+        name: m?.name || "Item",
+        qty: oi.quantity,
+        rate: +oi.price.toFixed(2),
+        amount: +(oi.price * oi.quantity).toFixed(2),
+      };
+    });
   };
 
   // Point 1: aggregate highest-sales date(s)
