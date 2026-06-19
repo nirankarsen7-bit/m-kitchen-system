@@ -218,56 +218,75 @@ export const DashboardActiveOrders: React.FC = () => {
     const list = orderItems.filter(oi => oi.order_id === orderId && oi.status === OrderItemStatus.CONFIRMED);
     const subtotal = list.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-    const printWin = window.open("", "_blank");
-    if (!printWin) return;
+    const printWin = window.open("", "_blank", "width=420,height=640");
+    if (!printWin) {
+      alert("Popup blocked! Please allow popups for this site to print bills.");
+      return;
+    }
 
-    const widthStyle = posWidth === "58mm" ? "302px" : "576px";
+    const rollWidthMM = posWidth === "58mm" ? 58 : 80;
+    const contentWidthMM = posWidth === "58mm" ? 54 : 76; // inner width minus padding
 
     const htmlContent = `
+      <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8" />
           <title>Print Maharaji Bill</title>
           <style>
-            body {
-              font-family: 'JetBrains Mono', monospace, Arial;
+            @page {
+              size: ${rollWidthMM}mm auto;
               margin: 0;
-              padding: 10px;
-              width: ${widthStyle};
-              color: #1C1917;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+            }
+            body {
+              font-family: 'JetBrains Mono', 'Courier New', monospace;
+              width: ${contentWidthMM}mm;
+              padding: 2mm;
+              color: #000000;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
             .text-center { text-align: center; }
             .flex { display: flex; justify-content: space-between; }
-            .border-b { border-bottom: 1px dashed #7B1E2B; margin: 4px 0; }
+            .border-b { border-bottom: 1px dashed #000; margin: 4px 0; }
             .bold { font-weight: bold; }
-            .item-line { margin: 2px 0; font-size: 13px; }
-            .total-line { font-size: 15px; margin-top: 6px; font-weight: bold; }
+            .item-line { margin: 2px 0; font-size: 11px; }
+            .total-line { font-size: 13px; margin-top: 6px; font-weight: bold; }
+            table { width: 100%; font-size: 11px; border-collapse: collapse; }
+            h3 { margin: 2px 0; font-size: 14px; }
+            p { margin: 2px 0; }
+            img { max-width: 18mm; height: auto; }
           </style>
-          <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
         </head>
         <body>
           <div style="text-align:center; margin-bottom:4px;">
-            <img src="https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png" alt="Maharaji Kitchen" style="width:64px; height:64px; object-fit:contain;" />
+            <img src="https://i.ibb.co/rKH953Pw/f9132bb7-ee8f-4f24-9da2-1b31129efa04-removalai-preview.png" alt="Maharaji Kitchen" />
           </div>
-          <h3 class="text-center" style="margin:2px 0;">MAHARAJI KITCHEN</h3>
-          <p class="text-center" style="font-size:11px; margin:2px 0; font-style: italic;">"${system.tagline}"</p>
-          <p class="text-center" style="font-size:10px; margin:2px 0;">Nagrakata, Sukhanibasti, NH31C</p>
-          <p class="text-center" style="font-size:10px; margin:2px 0;">West Bengal 735225</p>
-          <p class="text-center" style="font-size:10px; margin:2px 0;">WhatsApp: +91 70764 30467</p>
-          
+          <h3 class="text-center">MAHARAJI KITCHEN</h3>
+          <p class="text-center" style="font-size:10px; font-style: italic;">"${system.tagline}"</p>
+          <p class="text-center" style="font-size:9px;">Nagrakata, Sukhanibasti, NH31C</p>
+          <p class="text-center" style="font-size:9px;">West Bengal 735225</p>
+          <p class="text-center" style="font-size:9px;">WhatsApp: +91 70764 30467</p>
+
           <div class="border-b"></div>
-          
-          <div class="flex" style="font-size:11px;">
+
+          <div class="flex" style="font-size:10px;">
             <span>Table No: ${tableNum}</span>
             <span>Date: ${new Date().toLocaleDateString()}</span>
           </div>
-          <div class="flex" style="font-size:11px;">
+          <div class="flex" style="font-size:10px;">
             <span>Bill ID: MK-${orderId.slice(-6).toUpperCase()}</span>
             <span>Time: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
           </div>
 
           <div class="border-b"></div>
 
-          <table style="width:100%; font-size:12px; border-collapse: collapse;">
+          <table>
             <thead>
               <tr style="text-align: left; font-weight: bold;">
                 <th>ITEM</th>
@@ -282,7 +301,7 @@ export const DashboardActiveOrders: React.FC = () => {
                   <tr>
                     <td>${item?.name || "Dishes"}</td>
                     <td style="text-align: center;">${oi.quantity}</td>
-                    <td style="text-align: right;">₹${(oi.price * oi.quantity).toFixed(0)}</td>
+                    <td style="text-align: right;">Rs.${(oi.price * oi.quantity).toFixed(0)}</td>
                   </tr>
                 `;
               }).join("")}
@@ -291,30 +310,41 @@ export const DashboardActiveOrders: React.FC = () => {
 
           <div class="border-b"></div>
 
-          <div class="flex" style="font-size:12px;">
+          <div class="flex" style="font-size:11px;">
             <span>Subtotal:</span>
-            <span>₹${subtotal.toFixed(2)}</span>
+            <span>Rs.${subtotal.toFixed(2)}</span>
           </div>
           <div class="flex total-line">
             <span>GRAND TOTAL:</span>
-            <span>₹${subtotal.toFixed(2)}</span>
+            <span>Rs.${subtotal.toFixed(2)}</span>
           </div>
 
           <div class="border-b"></div>
-          <p class="text-center" style="font-size:11px; font-style: italic; margin-top:8px;">Thank You! Visit Again</p>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500);
-            };
-          </script>
+          <p class="text-center" style="font-size:10px; font-style: italic; margin-top:8px;">Thank You! Visit Again</p>
         </body>
       </html>
     `;
 
+    printWin.document.open();
     printWin.document.write(htmlContent);
     printWin.document.close();
+
+    // Trigger print from parent after content + images settle (more reliable than inline script)
+    const triggerPrint = () => {
+      try {
+        printWin.focus();
+        printWin.print();
+        setTimeout(() => { try { printWin.close(); } catch {} }, 800);
+      } catch (e) {
+        console.error("Print failed:", e);
+      }
+    };
+
+    if (printWin.document.readyState === "complete") {
+      setTimeout(triggerPrint, 400);
+    } else {
+      printWin.addEventListener("load", () => setTimeout(triggerPrint, 400));
+    }
   };
 
   return (
