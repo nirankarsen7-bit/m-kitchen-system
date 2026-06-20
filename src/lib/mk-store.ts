@@ -1151,7 +1151,7 @@ export const useStore = create<AppState>((set, get) => {
       saveToStorage("coupons", INITIAL_COUPONS);
       saveToStorage("stock_purchases", []);
       saveToStorage("material_usages", []);
-      saveToStorage("menu_recipes", {});
+      saveToStorage("menu_recipes", preservedRecipes);
       saveToStorage("supplier_payments", []);
       saveToStorage("audit_logs", []); // Clear all logs
       saveToStorage("system", get().system); // Preserve active config
