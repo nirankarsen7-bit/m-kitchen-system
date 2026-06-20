@@ -1112,14 +1112,18 @@ export const useStore = create<AppState>((set, get) => {
         status: TableStatus.LOCKED
       }));
 
-      // F14: HARD RESET CLEARS ALL DATA - only preserve user session and system config
-      // No preservation of audit logs, bills, orders, etc. Complete fresh start.
+      // F14: HARD RESET CLEARS ALL DATA - only preserve user session, system config, and MENU (categories + menu items)
+      // Menu is preserved because it represents the restaurant's manually curated offerings — only manual deletion allowed.
 
-      // 1. Update the in-memory state cleanly - complete wipe
+      const preservedCategories = get().categories;
+      const preservedMenuItems = get().menuItems;
+      const preservedRecipes = get().menuRecipes;
+
+      // 1. Update the in-memory state cleanly - complete wipe (except menu)
       set({
         tables: freshLockedTables,
-        categories: INITIAL_CATEGORIES,
-        menuItems: INITIAL_MENU_ITEMS,
+        categories: preservedCategories,
+        menuItems: preservedMenuItems,
         orders: [],
         orderItems: [],
         bills: [],
@@ -1128,16 +1132,17 @@ export const useStore = create<AppState>((set, get) => {
         coupons: INITIAL_COUPONS,
         stockPurchases: [],
         materialUsages: [],
-        menuRecipes: {},
+        menuRecipes: preservedRecipes,
         supplierPayments: [],
         auditLogs: [], // Clear all logs too
         currentUser: get().currentUser // Keep Admin logged in!
       });
 
-      // 2. Overwrite localStorage keys with clean state explicitly - complete wipe
+      // 2. Overwrite localStorage keys with clean state explicitly - complete wipe (except menu)
       saveToStorage("tables", freshLockedTables);
-      saveToStorage("categories", INITIAL_CATEGORIES);
-      saveToStorage("menu_items", INITIAL_MENU_ITEMS);
+      saveToStorage("categories", preservedCategories);
+      saveToStorage("menu_items", preservedMenuItems);
+
       saveToStorage("orders", []);
       saveToStorage("order_items", []);
       saveToStorage("bills", []);
