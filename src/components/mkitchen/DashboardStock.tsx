@@ -573,7 +573,7 @@ export const DashboardStock: React.FC = () => {
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
             <div>
               <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Mode</label>
               <select
@@ -618,6 +618,20 @@ export const DashboardStock: React.FC = () => {
                 <option value="all">All materials</option>
                 {Object.values(recipeMaterialsList).map(m => <option key={m.display} value={m.display}>{m.display}</option>)}
               </select>
+            </div>
+            {/* Update 2: Material search placed IMMEDIATELY AFTER the Material dropdown */}
+            <div>
+              <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Search Material</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-mocha" />
+                <input
+                  type="text"
+                  value={traceMaterialSearch}
+                  onChange={(e) => { setTraceMaterialSearch(e.target.value); setTracePage(1); }}
+                  placeholder="Search material..."
+                  className="w-full pl-7 pr-2 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+                />
+              </div>
             </div>
           </div>
 
