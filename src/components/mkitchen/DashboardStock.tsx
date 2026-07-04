@@ -219,17 +219,70 @@ export const DashboardStock: React.FC = () => {
     .filter(s => s.date.startsWith(todayPrefix))
     .reduce((acc, s) => acc + s.total, 0);
 
-  // Filter lists
-  const filteredStock = stockPurchases.filter(stock => {
-    const matchesSearch = stock.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          stock.supplier.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesUnit = selectedUnit === "all" || stock.unit === selectedUnit;
-    return matchesSearch && matchesUnit;
-  });
+  // ---- Per-material aggregated stats (added − used = in-hand) ----
+  const materialStats = useMemo(() => {
+    const soldByMenuItem: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status === OrderItemStatus.CONFIRMED) {
+        soldByMenuItem[oi.menu_item_id] = (soldByMenuItem[oi.menu_item_id] || 0) + oi.quantity;
+      }
+    });
+    const consumedByName: Record<string, number> = {};
+    materialUsages.forEach(mu => {
+      const sold = soldByMenuItem[mu.menu_item_id] || 0;
+      if (sold <= 0) return;
+      const key = mu.material_name.trim().toLowerCase();
+      consumedByName[key] = (consumedByName[key] || 0) + sold * mu.quantity_per_plate;
+    });
+    const byKey: Record<string, { display: string; unit: string; purchases: StockPurchase[]; totalPurchased: number; consumed: number; inHand: number }> = {};
+    stockPurchases.forEach(sp => {
+      const key = sp.item_name.trim().toLowerCase();
+      if (!byKey[key]) byKey[key] = { display: sp.item_name, unit: sp.unit, purchases: [], totalPurchased: 0, consumed: 0, inHand: 0 };
+      byKey[key].purchases.push(sp);
+      byKey[key].totalPurchased += sp.quantity;
+    });
+    Object.keys(byKey).forEach(k => {
+      byKey[k].purchases.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      byKey[k].consumed = consumedByName[k] || 0;
+      byKey[k].inHand = Math.max(0, byKey[k].totalPurchased - byKey[k].consumed);
+    });
+    return byKey;
+  }, [stockPurchases, materialUsages, orderItems]);
 
-  // F15: Export CSV/Excel download
+  const inHandFor = (name: string) => materialStats[name.trim().toLowerCase()]?.inHand ?? 0;
+
+  // ---- Ledger filters (Update 3) ----
+  const [ledgerMaterial, setLedgerMaterial] = useState("all");
+  const [ledgerSupplier, setLedgerSupplier] = useState("all");
+  const [ledgerFrom, setLedgerFrom] = useState("");
+  const [ledgerTo, setLedgerTo] = useState("");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const LEDGER_PAGE_SIZE = 10;
+
+  const uniqueMaterials = Array.from(new Set(stockPurchases.map(s => s.item_name))).sort();
+  const uniqueSuppliers = Array.from(new Set(stockPurchases.map(s => s.supplier).filter(Boolean))).sort();
+
+  const filteredStock = stockPurchases
+    .filter(stock => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = !q || stock.item_name.toLowerCase().includes(q) || stock.supplier.toLowerCase().includes(q);
+      const matchesUnit = selectedUnit === "all" || stock.unit === selectedUnit;
+      const matchesMaterial = ledgerMaterial === "all" || stock.item_name === ledgerMaterial;
+      const matchesSupplier = ledgerSupplier === "all" || stock.supplier === ledgerSupplier;
+      const d = new Date(stock.date).getTime();
+      const matchesFrom = !ledgerFrom || d >= new Date(ledgerFrom).getTime();
+      const matchesTo = !ledgerTo || d <= new Date(ledgerTo + "T23:59:59").getTime();
+      return matchesSearch && matchesUnit && matchesMaterial && matchesSupplier && matchesFrom && matchesTo;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const ledgerTotalPages = Math.max(1, Math.ceil(filteredStock.length / LEDGER_PAGE_SIZE));
+  const ledgerPageSafe = Math.min(ledgerPage, ledgerTotalPages);
+  const pagedStock = filteredStock.slice((ledgerPageSafe - 1) * LEDGER_PAGE_SIZE, ledgerPageSafe * LEDGER_PAGE_SIZE);
+
+  // F15: Export CSV/Excel download (respects filters + includes In-hand)
   const handleExportCSV = () => {
-    const headers = ["Date", "Item Name", "Qty", "Unit", "Unit Price (INR)", "Total Value (INR)", "Supplier", "Notes"];
+    const headers = ["Date", "Item Name", "Qty", "Unit", "Unit Price (INR)", "Total Value (INR)", "Supplier", "In Hand (current)", "Notes"];
     const rows = filteredStock.map(s => [
       new Date(s.date).toLocaleDateString(),
       s.item_name,
@@ -238,24 +291,110 @@ export const DashboardStock: React.FC = () => {
       s.unit_price,
       s.total,
       s.supplier,
-      s.notes || ""
+      `${inHandFor(s.item_name).toFixed(2)} ${s.unit}`,
+      (s.notes || "").replace(/,/g, ";"),
     ]);
-
     const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `maharaji_stock_invoice_${todayPrefix}.csv`);
+    link.setAttribute("download", `maharaji_stock_ledger_${todayPrefix}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Stock data exported successfully!");
+    toast.success("Stock ledger exported successfully!");
+  };
+
+  // ---- Low Stock Details filter (Update 1.4) ----
+  const [detailMaterial, setDetailMaterial] = useState("all");
+  const [detailFrom, setDetailFrom] = useState("");
+  const [detailTo, setDetailTo] = useState("");
+  const [detailPage, setDetailPage] = useState(1);
+  const DETAIL_PAGE_SIZE = 10;
+
+  // Build step-by-step trace rows for the selected material(s) in date range
+  const traceRows = useMemo(() => {
+    const keys = detailMaterial === "all"
+      ? Object.keys(materialStats)
+      : [detailMaterial.trim().toLowerCase()].filter(k => materialStats[k]);
+    const rows: { date: string; material: string; unit: string; added: number; inHandBefore: number; inHandAfter: number }[] = [];
+    keys.forEach(k => {
+      const info = materialStats[k];
+      if (!info) return;
+      let running = 0;
+      info.purchases.forEach(p => {
+        const before = running;
+        running += p.quantity;
+        rows.push({
+          date: p.date,
+          material: info.display,
+          unit: info.unit,
+          added: p.quantity,
+          inHandBefore: before,
+          inHandAfter: running,
+        });
+      });
+    });
+    return rows
+      .filter(r => {
+        const d = new Date(r.date).getTime();
+        if (detailFrom && d < new Date(detailFrom).getTime()) return false;
+        if (detailTo && d > new Date(detailTo + "T23:59:59").getTime()) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [materialStats, detailMaterial, detailFrom, detailTo]);
+
+  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / DETAIL_PAGE_SIZE));
+  const traceSafePage = Math.min(detailPage, traceTotalPages);
+  const pagedTrace = traceRows.slice((traceSafePage - 1) * DETAIL_PAGE_SIZE, traceSafePage * DETAIL_PAGE_SIZE);
+
+  const handleDownloadTrace = () => {
+    const headers = ["Date", "Material", "Added Qty", "Unit", "In-Hand Before Add", "In-Hand After Add"];
+    const rows = traceRows.map(r => [
+      new Date(r.date).toLocaleString(),
+      r.material,
+      r.added,
+      r.unit,
+      r.inHandBefore.toFixed(2),
+      r.inHandAfter.toFixed(2),
+    ]);
+    const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csv));
+    link.setAttribute("download", `maharaji_stock_trace_${todayPrefix}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Trace report downloaded!");
+  };
+
+  const handlePrintTrace = () => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+    const rowsHtml = traceRows.map(r => `
+      <tr>
+        <td>${new Date(r.date).toLocaleString()}</td>
+        <td>${r.material}</td>
+        <td style="text-align:right">${r.added} ${r.unit}</td>
+        <td style="text-align:right">${r.inHandBefore.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.inHandAfter.toFixed(2)} ${r.unit}</td>
+      </tr>`).join("");
+    w.document.write(`<!doctype html><html><head><title>Stock Trace Report</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#faf7f2}</style>
+      </head><body>
+      <h2>Maharaji Kitchen — Raw Material Trace</h2>
+      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()}${detailMaterial !== "all" ? ` · Material: ${materialStats[detailMaterial.trim().toLowerCase()]?.display}` : ""}${detailFrom ? ` · From: ${detailFrom}` : ""}${detailTo ? ` · To: ${detailTo}` : ""}</div>
+      <table><thead><tr><th>Date</th><th>Material</th><th>Added</th><th>In-Hand Before</th><th>In-Hand After</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <script>window.onload=()=>{window.print();}</script>
+      </body></html>`);
+    w.document.close();
   };
 
   // Set of low-stock material names (lowercased) for row highlighting
   const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
+
 
   return (
     <div className="space-y-6 font-sans">
