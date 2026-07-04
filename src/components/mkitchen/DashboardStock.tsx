@@ -62,9 +62,9 @@ export const DashboardStock: React.FC = () => {
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isReception = currentUser?.role === UserRole.RECEPTION;
+  const canSeeTracing = isAdmin || isReception;
 
-  // Calculate low stock from store helper
-  const lowStockList = getLowStockMaterials();
 
   const handleSaveRecipe = (e: React.FormEvent) => {
     e.preventDefault();
