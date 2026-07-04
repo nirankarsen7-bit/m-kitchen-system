@@ -513,8 +513,9 @@ export const DashboardStock: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
 
-      {/* UPDATE 6 — LOW STOCK ALERT (Admin & Reception, sits ABOVE Stock Tracing) */}
-      {canSeeTracing && lowStockAlerts.length > 0 && (
+      {/* UPDATE 3 — LOW STOCK ALERT (Admin & Reception, sits ABOVE Stock Tracing).
+          Always rendered so the section is visible; shows an "all clear" state when nothing is low. */}
+      {canSeeTracing && (
         <div className="bg-gradient-to-br from-red-50 to-amber-50 border-2 border-red-400/50 rounded-2xl p-5 space-y-3 shadow-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mk-low-blink" aria-hidden />
@@ -523,17 +524,21 @@ export const DashboardStock: React.FC = () => {
             </h4>
             <span className="ml-auto text-[10px] font-mono text-red-700/80">{lowStockAlerts.length} item{lowStockAlerts.length !== 1 ? "s" : ""}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {lowStockAlerts.map(a => (
-              <div
-                key={a.key}
-                className="mk-low-blink flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-red-400/50 bg-white/85"
-              >
-                <span className="text-[12px] font-semibold text-red-800 truncate">{a.material}</span>
-                <span className="text-[11px] font-mono font-black text-red-700">{a.remaining.toFixed(2)} {a.unit}</span>
-              </div>
-            ))}
-          </div>
+          {lowStockAlerts.length === 0 ? (
+            <p className="text-[11px] text-mocha">All materials are above the 25% low-stock threshold. Alerts will appear here automatically.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {lowStockAlerts.map(a => (
+                <div
+                  key={a.key}
+                  className="mk-low-blink flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-red-400/50 bg-white/85"
+                >
+                  <span className="text-[12px] font-semibold text-red-800 truncate">{a.material}</span>
+                  <span className="text-[11px] font-mono font-black text-red-700">{a.remaining.toFixed(2)} {a.unit}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <style>{`
             @keyframes mkLowBlink { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
             .mk-low-blink { animation: mkLowBlink 1.8s ease-in-out infinite; }
