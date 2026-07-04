@@ -427,13 +427,14 @@ export const DashboardStock: React.FC = () => {
   const lowStockAlerts = useMemo(() => {
     const todayStart = new Date(todayPrefix + "T00:00:00").getTime();
     const todayEnd = new Date(todayPrefix + "T23:59:59.999").getTime();
-    const pBefore = purchasedBefore(todayStart);
     const cBefore = consumedBefore(todayStart);
     const cToday = consumedInRange(todayStart, todayEnd);
     const alerts: { key: string; material: string; unit: string; remaining: number }[] = [];
     Object.keys(recipeMaterialsList).forEach(k => {
       const info = recipeMaterialsList[k];
-      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      // Update 1 & 3: Previous Balance = total purchases − consumed before today,
+      // matching the Purchases Ledger's in-hand quantity so the alert actually appears.
+      const previous = Math.max(0, (totalPurchasedByKey[k] || 0) - (cBefore[k] || 0));
       if (previous <= 0) return;
       const usage = cToday[k] || 0;
       const remaining = previous - usage;
