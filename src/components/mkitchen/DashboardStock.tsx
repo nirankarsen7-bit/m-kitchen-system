@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from "react";
 import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil, Printer, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, ChefHat, Scale, ArrowUpRight, Pencil, Printer, ChevronLeft, ChevronRight } from "lucide-react";
 import { UserRole, OrderItemStatus, type StockPurchase } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
@@ -22,7 +22,7 @@ export const DashboardStock: React.FC = () => {
   const menuRecipes = useStore(state => state.menuRecipes);
   const setMenuRecipe = useStore(state => state.setMenuRecipe);
   const deleteMenuRecipe = useStore(state => state.deleteMenuRecipe);
-  const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
+  
 
   // Form States
   const [itemName, setItemName] = useState("");
@@ -62,9 +62,9 @@ export const DashboardStock: React.FC = () => {
   const computedTotal = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isReception = currentUser?.role === UserRole.RECEPTION;
+  const canSeeTracing = isAdmin || isReception;
 
-  // Calculate low stock from store helper
-  const lowStockList = getLowStockMaterials();
 
   const handleSaveRecipe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,255 +306,286 @@ export const DashboardStock: React.FC = () => {
     toast.success("Stock ledger exported successfully!");
   };
 
-  // ---- Low Stock Details filter (Update 1.4) ----
-  const [detailMaterial, setDetailMaterial] = useState("all");
-  const [detailFrom, setDetailFrom] = useState("");
-  const [detailTo, setDetailTo] = useState("");
-  const [detailPage, setDetailPage] = useState(1);
-  const DETAIL_PAGE_SIZE = 10;
+  // ---- Stock Tracing (Admin/Reception) ----
+  const [traceMode, setTraceMode] = useState<"daily" | "range">("daily");
+  const [traceDay, setTraceDay] = useState(todayPrefix); // yyyy-mm-dd
+  const [traceFrom, setTraceFrom] = useState(todayPrefix);
+  const [traceTo, setTraceTo] = useState(todayPrefix);
+  const [traceMaterial, setTraceMaterial] = useState("all");
+  const [tracePage, setTracePage] = useState(1);
+  const TRACE_PAGE_SIZE = 10;
 
-  // Build step-by-step trace rows for the selected material(s) in date range
-  const traceRows = useMemo(() => {
-    const keys = detailMaterial === "all"
-      ? Object.keys(materialStats)
-      : [detailMaterial.trim().toLowerCase()].filter(k => materialStats[k]);
-    const rows: { date: string; material: string; unit: string; added: number; inHandBefore: number; inHandAfter: number }[] = [];
-    keys.forEach(k => {
-      const info = materialStats[k];
-      if (!info) return;
-      let running = 0;
-      info.purchases.forEach(p => {
-        const before = running;
-        running += p.quantity;
-        rows.push({
-          date: p.date,
-          material: info.display,
-          unit: info.unit,
-          added: p.quantity,
-          inHandBefore: before,
-          inHandAfter: running,
-        });
+  const traceWindow = useMemo(() => {
+    if (traceMode === "daily") {
+      const s = new Date(traceDay + "T00:00:00").getTime();
+      const e = new Date(traceDay + "T23:59:59.999").getTime();
+      return { start: s, end: e };
+    }
+    const s = new Date((traceFrom || todayPrefix) + "T00:00:00").getTime();
+    const e = new Date((traceTo || traceFrom || todayPrefix) + "T23:59:59.999").getTime();
+    return { start: s, end: e };
+  }, [traceMode, traceDay, traceFrom, traceTo, todayPrefix]);
+
+  // Per-material consumption in [start,end] window using per-plate recipes on CONFIRMED order items
+  const consumedInRange = (start: number, end: number) => {
+    const out: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status !== OrderItemStatus.CONFIRMED) return;
+      if (!oi.created_at) return;
+      const t = new Date(oi.created_at).getTime();
+      if (t < start || t > end) return;
+      materialUsages.forEach(mu => {
+        if (mu.menu_item_id !== oi.menu_item_id) return;
+        const key = mu.material_name.trim().toLowerCase();
+        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
       });
     });
-    return rows
-      .filter(r => {
-        const d = new Date(r.date).getTime();
-        if (detailFrom && d < new Date(detailFrom).getTime()) return false;
-        if (detailTo && d > new Date(detailTo + "T23:59:59").getTime()) return false;
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [materialStats, detailMaterial, detailFrom, detailTo]);
+    return out;
+  };
 
-  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / DETAIL_PAGE_SIZE));
-  const traceSafePage = Math.min(detailPage, traceTotalPages);
-  const pagedTrace = traceRows.slice((traceSafePage - 1) * DETAIL_PAGE_SIZE, traceSafePage * DETAIL_PAGE_SIZE);
+  const purchasedBefore = (start: number) => {
+    const out: Record<string, number> = {};
+    stockPurchases.forEach(sp => {
+      if (new Date(sp.date).getTime() >= start) return;
+      const key = sp.item_name.trim().toLowerCase();
+      out[key] = (out[key] || 0) + sp.quantity;
+    });
+    return out;
+  };
 
-  const handleDownloadTrace = () => {
-    const headers = ["Date", "Material", "Added Qty", "Unit", "In-Hand Before Add", "In-Hand After Add"];
+  const consumedBefore = (start: number) => {
+    const out: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status !== OrderItemStatus.CONFIRMED) return;
+      if (!oi.created_at) return;
+      if (new Date(oi.created_at).getTime() >= start) return;
+      materialUsages.forEach(mu => {
+        if (mu.menu_item_id !== oi.menu_item_id) return;
+        const key = mu.material_name.trim().toLowerCase();
+        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
+      });
+    });
+    return out;
+  };
+
+  const traceRows = useMemo(() => {
+    const { start, end } = traceWindow;
+    const pBefore = purchasedBefore(start);
+    const cBefore = consumedBefore(start);
+    const cRange = consumedInRange(start, end);
+    const keys = Object.keys(materialStats);
+    const rows = keys.map(k => {
+      const info = materialStats[k];
+      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      const usage = cRange[k] || 0;
+      const remaining = previous - usage;
+      return {
+        key: k,
+        material: info.display,
+        unit: info.unit,
+        previous,
+        usage,
+        remaining,
+      };
+    });
+    const filtered = traceMaterial === "all"
+      ? rows
+      : rows.filter(r => r.key === traceMaterial.trim().toLowerCase());
+    return filtered.sort((a, b) => a.material.localeCompare(b.material));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [traceWindow, materialStats, materialUsages, orderItems, stockPurchases, traceMaterial]);
+
+  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / TRACE_PAGE_SIZE));
+  const traceSafePage = Math.min(tracePage, traceTotalPages);
+  const pagedTrace = traceRows.slice((traceSafePage - 1) * TRACE_PAGE_SIZE, traceSafePage * TRACE_PAGE_SIZE);
+
+  const traceRangeLabel = traceMode === "daily"
+    ? traceDay
+    : `${traceFrom || "—"} to ${traceTo || traceFrom || "—"}`;
+
+  const handleTraceExportCSV = () => {
+    const headers = ["Material", "Unit", "Previous Balance Store", "Usage (Per Plate)", "In Store Remaining"];
     const rows = traceRows.map(r => [
-      new Date(r.date).toLocaleString(),
       r.material,
-      r.added,
       r.unit,
-      r.inHandBefore.toFixed(2),
-      r.inHandAfter.toFixed(2),
+      r.previous.toFixed(2),
+      r.usage.toFixed(2),
+      r.remaining.toFixed(2),
     ]);
     const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csv));
-    link.setAttribute("download", `maharaji_stock_trace_${todayPrefix}.csv`);
+    link.setAttribute("download", `maharaji_stock_tracing_${traceRangeLabel.replace(/\s+/g, "_")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Trace report downloaded!");
+    toast.success("Stock tracing exported (Excel/CSV)!");
   };
 
-  const handlePrintTrace = () => {
-    const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+  const buildTracePrintHtml = () => {
     const rowsHtml = traceRows.map(r => `
       <tr>
-        <td>${new Date(r.date).toLocaleString()}</td>
         <td>${r.material}</td>
-        <td style="text-align:right">${r.added} ${r.unit}</td>
-        <td style="text-align:right">${r.inHandBefore.toFixed(2)} ${r.unit}</td>
-        <td style="text-align:right">${r.inHandAfter.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.previous.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.usage.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right;${r.remaining <= 0 ? "color:#b91c1c;font-weight:bold;" : ""}">${r.remaining.toFixed(2)} ${r.unit}</td>
       </tr>`).join("");
-    w.document.write(`<!doctype html><html><head><title>Stock Trace Report</title>
+    return `<!doctype html><html><head><title>Stock Tracing Report</title>
       <style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#faf7f2}</style>
       </head><body>
-      <h2>Maharaji Kitchen — Raw Material Trace</h2>
-      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()}${detailMaterial !== "all" ? ` · Material: ${materialStats[detailMaterial.trim().toLowerCase()]?.display}` : ""}${detailFrom ? ` · From: ${detailFrom}` : ""}${detailTo ? ` · To: ${detailTo}` : ""}</div>
-      <table><thead><tr><th>Date</th><th>Material</th><th>Added</th><th>In-Hand Before</th><th>In-Hand After</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <h2>Maharaji Kitchen — Stock Tracing</h2>
+      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[traceMaterial.trim().toLowerCase()]?.display ?? traceMaterial}` : ""}</div>
+      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script>
-      </body></html>`);
+      </body></html>`;
+  };
+
+  const handleTracePrint = () => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+    w.document.write(buildTracePrintHtml());
     w.document.close();
   };
 
-  // Set of low-stock material names (lowercased) for row highlighting
-  const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
+  const handleTracePDF = () => {
+    // Uses browser's Print → Save as PDF flow (no extra dependencies).
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to save as PDF."); return; }
+    w.document.write(buildTracePrintHtml().replace("<title>Stock Tracing Report</title>", "<title>Stock Tracing Report (PDF)</title>"));
+    w.document.close();
+    toast.success("Choose 'Save as PDF' in the print dialog.");
+  };
+
+
 
 
   return (
     <div className="space-y-6 font-sans">
 
-      {/* LOW STOCK ALERT — Admin only, ≥75% consumption. Quantities in units. */}
-      {isAdmin && lowStockList.length > 0 && (
-        <div className="low-stock-blink border-2 rounded-2xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5 animate-pulse" />
-          <div className="flex-1">
-            <h4 className="font-serif text-base font-black text-red-800 leading-tight">
-              Low Stock Alert — {lowStockList.length} material{lowStockList.length > 1 ? "s" : ""} need{lowStockList.length > 1 ? "" : "s"} restock
-            </h4>
-            <p className="text-[11px] text-red-900/80 mt-1">
-              Materials with 75% or more of stock already consumed. Restock soon to avoid running out.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {lowStockList.map((ls, i) => (
-                <span key={i} className="text-[10px] font-bold bg-white/85 text-red-800 px-2 py-1 rounded border border-red-400">
-                  <span className="uppercase tracking-wider">{ls.material}</span>
-                  <span className="ml-1 font-mono">· In-Hand: {ls.currentStock.toFixed(2)} {ls.unit}</span>
-                </span>
-              ))}
+      {/* STOCK TRACING — Admin & Reception only. Placed at the very top. */}
+      {canSeeTracing && (
+        <div className="bg-white border-2 border-gold-rich/20 rounded-2xl p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h4 className="font-serif text-base font-bold text-maroon-royal flex items-center gap-2">
+                <Scale className="w-5 h-5 text-gold-rich" />
+                Stock Tracing
+              </h4>
+              <p className="text-[11px] text-mocha mt-0.5">
+                Previous Balance − Usage (per-plate) = In Store Remaining. Zero / negative highlighted in red.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={handleTraceExportCSV} className="py-2 text-[10px] bg-white border-gold-rich/20">
+                <Download className="w-3.5 h-3.5" /> <span>Excel</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleTracePDF} className="py-2 text-[10px] bg-white border-gold-rich/20">
+                <Download className="w-3.5 h-3.5" /> <span>PDF</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleTracePrint} className="py-2 text-[10px] bg-white border-gold-rich/20">
+                <Printer className="w-3.5 h-3.5" /> <span>Print</span>
+              </Button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* LOW STOCK DETAILS — placed directly under Low Stock Alert */}
-      {isAdmin && (
-        <div className="bg-white border-2 border-red-200 rounded-2xl p-5 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Low Stock Details
-            </h4>
-            <p className="text-[11px] text-mocha">
-              Formula: <span className="font-mono font-bold">Added − Used = In-Hand</span>
-            </p>
+          {/* Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <div>
+              <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Mode</label>
+              <select
+                value={traceMode}
+                onChange={(e) => { setTraceMode(e.target.value as "daily" | "range"); setTracePage(1); }}
+                className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+              >
+                <option value="daily">Daily</option>
+                <option value="range">Custom Range</option>
+              </select>
+            </div>
+            {traceMode === "daily" ? (
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Date</label>
+                <input
+                  type="date"
+                  value={traceDay}
+                  onChange={(e) => { setTraceDay(e.target.value); setTracePage(1); }}
+                  className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
+                  <input type="date" value={traceFrom} onChange={(e) => { setTraceFrom(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
+                  <input type="date" value={traceTo} onChange={(e) => { setTraceTo(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                </div>
+              </>
+            )}
+            <div className={traceMode === "daily" ? "sm:col-span-2" : ""}>
+              <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
+              <select
+                value={traceMaterial}
+                onChange={(e) => { setTraceMaterial(e.target.value); setTracePage(1); }}
+                className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+              >
+                <option value="all">All materials</option>
+                {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
           </div>
 
-          {lowStockList.length === 0 ? (
-            <p className="text-[11px] text-mocha bg-cream-warm/40 rounded-lg p-3">
-              No materials are currently in low-stock condition (75%+ consumption).
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lowStockList.map((ls, idx) => {
-                const info = materialStats[ls.material.trim().toLowerCase()];
-                const lastPurchase = info?.purchases[info.purchases.length - 1];
-                const lastInHandAfterAdd = info ? info.totalPurchased : 0; // running total after last add (added quantities only)
-                return (
-                  <div key={idx} className="bg-red-50/50 p-3 rounded-xl border border-red-300 text-[11px] space-y-1">
-                    <div className="font-serif text-sm font-bold text-espresso mb-1">{ls.material}</div>
-                    <div className="flex justify-between"><span className="text-mocha">Last in hand Stock after Adding</span><span className="font-mono font-bold">{lastInHandAfterAdd.toFixed(2)} {ls.unit}</span></div>
-                    <div className="flex justify-between"><span className="text-mocha">Last added Date</span><span className="font-mono">{lastPurchase ? new Date(lastPurchase.date).toLocaleDateString() : "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-mocha">Last added Quantity</span><span className="font-mono font-bold">{lastPurchase ? `${lastPurchase.quantity} ${lastPurchase.unit}` : "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-mocha">Consumed</span><span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span></div>
-                    <div className="flex justify-between border-t border-red-200 pt-1 mt-1"><span className="font-bold text-red-700">Net Stock left In-Hand</span><span className="font-mono font-black text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span></div>
-                  </div>
-                );
-              })}
+          {/* Table */}
+          <div className="bg-white border border-gold-rich/10 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
+                    <th className="p-2.5">#</th>
+                    <th className="p-2.5">Material</th>
+                    <th className="p-2.5">Previous Balance Store</th>
+                    <th className="p-2.5">Usage (Per Plate)</th>
+                    <th className="p-2.5">In Store Remaining</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gold-rich/5">
+                  {pagedTrace.length === 0 ? (
+                    <tr><td colSpan={5} className="p-4 text-center text-mocha text-[11px]">No materials to trace for the selected filters.</td></tr>
+                  ) : pagedTrace.map((r, i) => {
+                    const isZero = r.remaining <= 0;
+                    return (
+                      <tr key={r.key} className={`hover:bg-[#FAF7F2]/40 ${isZero ? "bg-red-50/60" : ""}`}>
+                        <td className={`p-2.5 ${isZero ? "text-red-700 font-bold" : "text-mocha"}`}>{(traceSafePage - 1) * TRACE_PAGE_SIZE + i + 1}</td>
+                        <td className={`p-2.5 font-semibold ${isZero ? "text-red-700" : "text-espresso"}`}>{r.material}</td>
+                        <td className={`p-2.5 font-mono ${isZero ? "text-red-700 font-bold" : "text-espresso"}`}>{r.previous.toFixed(2)} {r.unit}</td>
+                        <td className={`p-2.5 font-mono ${isZero ? "text-red-700 font-bold" : "text-mocha"}`}>{r.usage.toFixed(2)} {r.unit}</td>
+                        <td className={`p-2.5 font-mono font-black ${isZero ? "text-red-700" : "text-maroon-royal"}`}>{r.remaining.toFixed(2)} {r.unit}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {traceRows.length > TRACE_PAGE_SIZE && (
+            <div className="flex items-center justify-between text-[11px] text-mocha">
+              <span>Showing {(traceSafePage - 1) * TRACE_PAGE_SIZE + 1}–{Math.min(traceSafePage * TRACE_PAGE_SIZE, traceRows.length)} of {traceRows.length}</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setTracePage(Math.max(1, traceSafePage - 1))} disabled={traceSafePage === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                {Array.from({ length: traceTotalPages }).map((_, i) => (
+                  <button key={i} onClick={() => setTracePage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${traceSafePage === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
+                ))}
+                <button onClick={() => setTracePage(Math.min(traceTotalPages, traceSafePage + 1))} disabled={traceSafePage === traceTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
+              </div>
             </div>
           )}
-
-          {/* Update 1.4 — Raw material + date filter tracing */}
-          <div className="border-t border-red-200 pt-4 space-y-3">
-            <h5 className="text-xs font-bold uppercase tracking-wider text-maroon-royal flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5" /> Filter by Raw Material & Date
-            </h5>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
-                <select
-                  value={detailMaterial}
-                  onChange={(e) => { setDetailMaterial(e.target.value); setDetailPage(1); }}
-                  className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
-                >
-                  <option value="all">All materials</option>
-                  {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
-                <input type="date" value={detailFrom} onChange={(e) => { setDetailFrom(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
-              </div>
-              <div>
-                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
-                <input type="date" value={detailTo} onChange={(e) => { setDetailTo(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button variant="ghost" size="sm" onClick={handleDownloadTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
-                  <Download className="w-3.5 h-3.5" /> <span>Download</span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handlePrintTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
-                  <Printer className="w-3.5 h-3.5" /> <span>Print</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Summary strip for the selected material */}
-            {detailMaterial !== "all" && materialStats[detailMaterial.trim().toLowerCase()] && (() => {
-              const info = materialStats[detailMaterial.trim().toLowerCase()];
-              return (
-                <div className="bg-cream-warm/40 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
-                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Total Added (to date)</div><div className="font-mono font-black text-espresso">{info.totalPurchased.toFixed(2)} {info.unit}</div></div>
-                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Consumed</div><div className="font-mono font-black text-espresso">{info.consumed.toFixed(2)} {info.unit}</div></div>
-                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Present In-Hand</div><div className="font-mono font-black text-maroon-royal">{info.inHand.toFixed(2)} {info.unit}</div></div>
-                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Purchase Entries</div><div className="font-mono font-black text-espresso">{info.purchases.length}</div></div>
-                </div>
-              );
-            })()}
-
-            {/* Trace table */}
-            <div className="bg-white border border-gold-rich/10 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
-                      <th className="p-2.5">#</th>
-                      <th className="p-2.5">Date</th>
-                      <th className="p-2.5">Material</th>
-                      <th className="p-2.5">Added</th>
-                      <th className="p-2.5">In-Hand Before Add</th>
-                      <th className="p-2.5">In-Hand After Add</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gold-rich/5">
-                    {pagedTrace.length === 0 ? (
-                      <tr><td colSpan={6} className="p-4 text-center text-mocha text-[11px]">No stock-add entries match the filter.</td></tr>
-                    ) : pagedTrace.map((r, i) => (
-                      <tr key={i} className="hover:bg-[#FAF7F2]/40">
-                        <td className="p-2.5 text-mocha">{(traceSafePage - 1) * DETAIL_PAGE_SIZE + i + 1}</td>
-                        <td className="p-2.5 text-mocha">{new Date(r.date).toLocaleDateString()}</td>
-                        <td className="p-2.5 font-semibold text-espresso">{r.material}</td>
-                        <td className="p-2.5 font-mono font-bold text-success">+ {r.added} {r.unit}</td>
-                        <td className="p-2.5 font-mono">{r.inHandBefore.toFixed(2)} {r.unit}</td>
-                        <td className="p-2.5 font-mono font-bold text-maroon-royal">{r.inHandAfter.toFixed(2)} {r.unit}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Pagination */}
-            {traceRows.length > DETAIL_PAGE_SIZE && (
-              <div className="flex items-center justify-between text-[11px] text-mocha">
-                <span>Showing {(traceSafePage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(traceSafePage * DETAIL_PAGE_SIZE, traceRows.length)} of {traceRows.length}</span>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setDetailPage(Math.max(1, traceSafePage - 1))} disabled={traceSafePage === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
-                  {Array.from({ length: traceTotalPages }).map((_, i) => (
-                    <button key={i} onClick={() => setDetailPage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${traceSafePage === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
-                  ))}
-                  <button onClick={() => setDetailPage(Math.min(traceTotalPages, traceSafePage + 1))} disabled={traceSafePage === traceTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       )}
+
+
 
 
       {/* HEADER BAR */}
@@ -794,27 +825,22 @@ export const DashboardStock: React.FC = () => {
                       const stockPayments = supplierPayments.filter(p => p.stock_purchase_id === s.id);
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
-                      const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
                       const inHand = inHandFor(s.item_name);
 
                       return (
-                        <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
+                        <tr key={s.id} className="hover:bg-[#FAF7F2]/40 transition-colors">
                           <td className="p-3 text-mocha">{new Date(s.date).toLocaleDateString()}</td>
                           <td className="p-3 font-semibold text-espresso">
                             <span className="inline-flex items-center gap-1.5">
                               {s.item_name}
-                              {isLow && (
-                                <span className="text-[8px] font-black uppercase tracking-wider bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
-                                  Low
-                                </span>
-                              )}
                             </span>
                           </td>
                           <td className="p-3 font-mono font-bold text-espresso">{s.quantity} {s.unit}</td>
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
                           <td className="p-3 text-mocha truncate max-w-[100px]">{s.supplier || "Cash/Direct"}</td>
-                          <td className={`p-3 font-mono font-bold ${isLow ? "text-red-700" : "text-espresso"}`}>{inHand.toFixed(2)} {s.unit}</td>
+                          <td className="p-3 font-mono font-bold text-espresso">{inHand.toFixed(2)} {s.unit}</td>
+
                           <td className="p-3">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isFullyPaid ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                               {isFullyPaid ? "Paid" : `₹${(s.total - totalPaid).toFixed(0)} due`}
