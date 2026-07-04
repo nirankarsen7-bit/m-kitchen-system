@@ -1200,7 +1200,8 @@ export const DashboardStock: React.FC = () => {
                     );
                   })}
                 </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
