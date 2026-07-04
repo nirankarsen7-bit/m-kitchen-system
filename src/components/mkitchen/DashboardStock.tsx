@@ -221,6 +221,15 @@ export const DashboardStock: React.FC = () => {
     .filter(s => s.date.startsWith(todayPrefix))
     .reduce((acc, s) => acc + s.total, 0);
 
+  // Normalize material names so Purchases Ledger ↔ Saved Recipes match even with
+  // extra spaces, case differences, or simple singular/plural ("Tomato" vs "Tomatoes").
+  const normName = (s: string) => {
+    const base = (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (base.length > 3 && base.endsWith("es")) return base.slice(0, -2);
+    if (base.length > 3 && base.endsWith("s")) return base.slice(0, -1);
+    return base;
+  };
+
   // ---- Per-material aggregated stats (added − used = in-hand) ----
   const materialStats = useMemo(() => {
     const soldByMenuItem: Record<string, number> = {};
