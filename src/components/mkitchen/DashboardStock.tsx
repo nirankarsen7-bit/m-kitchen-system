@@ -14,6 +14,7 @@ export const DashboardStock: React.FC = () => {
   const supplierPayments = useStore(state => state.supplierPayments);
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
+  const orderItems = useStore(state => state.orderItems);
 
   // F11 / F8: Material usage tracking (Knowledge Base recipe text per menu item)
   const menuItems = useStore(state => state.menuItems);
