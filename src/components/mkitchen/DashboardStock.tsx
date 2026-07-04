@@ -368,14 +368,35 @@ export const DashboardStock: React.FC = () => {
     return out;
   };
 
+  // Update 2: source-of-truth = Saved Recipes (materialUsages). Every material in a saved recipe
+  // shows up in Stock Tracing, even if it hasn't been purchased yet.
+  const recipeMaterialsList = useMemo(() => {
+    const map: Record<string, { display: string; unit: string }> = {};
+    materialUsages.forEach(mu => {
+      const key = mu.material_name.trim().toLowerCase();
+      if (!map[key]) map[key] = { display: mu.material_name, unit: mu.unit };
+    });
+    // Prefer purchased-unit display if a matching purchase exists (keeps ledger consistent)
+    Object.keys(map).forEach(k => {
+      const info = materialStats[k];
+      if (info) map[k] = { display: info.display, unit: info.unit };
+    });
+    return map;
+  }, [materialUsages, materialStats]);
+
+  // Update 4: in-column search on the Material column (case-insensitive)
+  const [traceMaterialSearch, setTraceMaterialSearch] = useState("");
+
   const traceRows = useMemo(() => {
     const { start, end } = traceWindow;
     const pBefore = purchasedBefore(start);
     const cBefore = consumedBefore(start);
+    // Update 3: same deduction logic as Low Stock (materialUsages × confirmed sold),
+    // scoped to the date window so today's sales reflect in "Today Total Usage".
     const cRange = consumedInRange(start, end);
-    const keys = Object.keys(materialStats);
+    const keys = Object.keys(recipeMaterialsList);
     const rows = keys.map(k => {
-      const info = materialStats[k];
+      const info = recipeMaterialsList[k];
       const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
       const usage = cRange[k] || 0;
       const remaining = previous - usage;
@@ -388,12 +409,37 @@ export const DashboardStock: React.FC = () => {
         remaining,
       };
     });
-    const filtered = traceMaterial === "all"
+    const byDropdown = traceMaterial === "all"
       ? rows
       : rows.filter(r => r.key === traceMaterial.trim().toLowerCase());
-    return filtered.sort((a, b) => a.material.localeCompare(b.material));
+    const q = traceMaterialSearch.trim().toLowerCase();
+    const bySearch = !q ? byDropdown : byDropdown.filter(r => r.material.toLowerCase().includes(q));
+    return bySearch.sort((a, b) => a.material.localeCompare(b.material));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [traceWindow, materialStats, materialUsages, orderItems, stockPurchases, traceMaterial]);
+  }, [traceWindow, recipeMaterialsList, materialUsages, orderItems, stockPurchases, traceMaterial, traceMaterialSearch]);
+
+  // Update 6: Low Stock Alert — Remaining <= 25% of Previous Balance Store (today window).
+  // Uses the exact same deduction pipeline as Stock Tracing, so it stays real-time.
+  const lowStockAlerts = useMemo(() => {
+    const todayStart = new Date(todayPrefix + "T00:00:00").getTime();
+    const todayEnd = new Date(todayPrefix + "T23:59:59.999").getTime();
+    const pBefore = purchasedBefore(todayStart);
+    const cBefore = consumedBefore(todayStart);
+    const cToday = consumedInRange(todayStart, todayEnd);
+    const alerts: { key: string; material: string; unit: string; remaining: number }[] = [];
+    Object.keys(recipeMaterialsList).forEach(k => {
+      const info = recipeMaterialsList[k];
+      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      if (previous <= 0) return;
+      const usage = cToday[k] || 0;
+      const remaining = previous - usage;
+      if (remaining <= previous * 0.25) {
+        alerts.push({ key: k, material: info.display, unit: info.unit, remaining: Math.max(0, remaining) });
+      }
+    });
+    return alerts.sort((a, b) => a.remaining - b.remaining);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipeMaterialsList, orderItems, stockPurchases, materialUsages, todayPrefix]);
 
   const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / TRACE_PAGE_SIZE));
   const traceSafePage = Math.min(tracePage, traceTotalPages);
