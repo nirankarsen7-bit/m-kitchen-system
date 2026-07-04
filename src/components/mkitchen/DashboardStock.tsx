@@ -481,7 +481,7 @@ export const DashboardStock: React.FC = () => {
       </head><body>
       <h2>Maharaji Kitchen — Stock Tracing</h2>
       <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[traceMaterial.trim().toLowerCase()]?.display ?? traceMaterial}` : ""}</div>
-      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Today Total Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script>
       </body></html>`;
   };
