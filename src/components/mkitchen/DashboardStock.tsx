@@ -343,15 +343,19 @@ export const DashboardStock: React.FC = () => {
     return out;
   };
 
-  const purchasedBefore = (start: number) => {
+  // Update 1: Previous Balance Store MUST reflect the Purchases Ledger's in-hand quantity.
+  // Use TOTAL purchases (all-time) so today's purchases are already sitting in the store,
+  // then only subtract consumption BEFORE the selected window. Earlier we excluded
+  // purchases dated inside the window, which made "In Store Remaining" go negative even
+  // though the ledger clearly had stock.
+  const totalPurchasedByKey = useMemo(() => {
     const out: Record<string, number> = {};
     stockPurchases.forEach(sp => {
-      if (new Date(sp.date).getTime() >= start) return;
       const key = sp.item_name.trim().toLowerCase();
       out[key] = (out[key] || 0) + sp.quantity;
     });
     return out;
-  };
+  }, [stockPurchases]);
 
   const consumedBefore = (start: number) => {
     const out: Record<string, number> = {};
