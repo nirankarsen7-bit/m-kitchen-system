@@ -368,14 +368,35 @@ export const DashboardStock: React.FC = () => {
     return out;
   };
 
+  // Update 2: source-of-truth = Saved Recipes (materialUsages). Every material in a saved recipe
+  // shows up in Stock Tracing, even if it hasn't been purchased yet.
+  const recipeMaterialsList = useMemo(() => {
+    const map: Record<string, { display: string; unit: string }> = {};
+    materialUsages.forEach(mu => {
+      const key = mu.material_name.trim().toLowerCase();
+      if (!map[key]) map[key] = { display: mu.material_name, unit: mu.unit };
+    });
+    // Prefer purchased-unit display if a matching purchase exists (keeps ledger consistent)
+    Object.keys(map).forEach(k => {
+      const info = materialStats[k];
+      if (info) map[k] = { display: info.display, unit: info.unit };
+    });
+    return map;
+  }, [materialUsages, materialStats]);
+
+  // Update 4: in-column search on the Material column (case-insensitive)
+  const [traceMaterialSearch, setTraceMaterialSearch] = useState("");
+
   const traceRows = useMemo(() => {
     const { start, end } = traceWindow;
     const pBefore = purchasedBefore(start);
     const cBefore = consumedBefore(start);
+    // Update 3: same deduction logic as Low Stock (materialUsages × confirmed sold),
+    // scoped to the date window so today's sales reflect in "Today Total Usage".
     const cRange = consumedInRange(start, end);
-    const keys = Object.keys(materialStats);
+    const keys = Object.keys(recipeMaterialsList);
     const rows = keys.map(k => {
-      const info = materialStats[k];
+      const info = recipeMaterialsList[k];
       const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
       const usage = cRange[k] || 0;
       const remaining = previous - usage;
@@ -388,12 +409,37 @@ export const DashboardStock: React.FC = () => {
         remaining,
       };
     });
-    const filtered = traceMaterial === "all"
+    const byDropdown = traceMaterial === "all"
       ? rows
       : rows.filter(r => r.key === traceMaterial.trim().toLowerCase());
-    return filtered.sort((a, b) => a.material.localeCompare(b.material));
+    const q = traceMaterialSearch.trim().toLowerCase();
+    const bySearch = !q ? byDropdown : byDropdown.filter(r => r.material.toLowerCase().includes(q));
+    return bySearch.sort((a, b) => a.material.localeCompare(b.material));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [traceWindow, materialStats, materialUsages, orderItems, stockPurchases, traceMaterial]);
+  }, [traceWindow, recipeMaterialsList, materialUsages, orderItems, stockPurchases, traceMaterial, traceMaterialSearch]);
+
+  // Update 6: Low Stock Alert — Remaining <= 25% of Previous Balance Store (today window).
+  // Uses the exact same deduction pipeline as Stock Tracing, so it stays real-time.
+  const lowStockAlerts = useMemo(() => {
+    const todayStart = new Date(todayPrefix + "T00:00:00").getTime();
+    const todayEnd = new Date(todayPrefix + "T23:59:59.999").getTime();
+    const pBefore = purchasedBefore(todayStart);
+    const cBefore = consumedBefore(todayStart);
+    const cToday = consumedInRange(todayStart, todayEnd);
+    const alerts: { key: string; material: string; unit: string; remaining: number }[] = [];
+    Object.keys(recipeMaterialsList).forEach(k => {
+      const info = recipeMaterialsList[k];
+      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      if (previous <= 0) return;
+      const usage = cToday[k] || 0;
+      const remaining = previous - usage;
+      if (remaining <= previous * 0.25) {
+        alerts.push({ key: k, material: info.display, unit: info.unit, remaining: Math.max(0, remaining) });
+      }
+    });
+    return alerts.sort((a, b) => a.remaining - b.remaining);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipeMaterialsList, orderItems, stockPurchases, materialUsages, todayPrefix]);
 
   const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / TRACE_PAGE_SIZE));
   const traceSafePage = Math.min(tracePage, traceTotalPages);
@@ -404,7 +450,7 @@ export const DashboardStock: React.FC = () => {
     : `${traceFrom || "—"} to ${traceTo || traceFrom || "—"}`;
 
   const handleTraceExportCSV = () => {
-    const headers = ["Material", "Unit", "Previous Balance Store", "Usage (Per Plate)", "In Store Remaining"];
+    const headers = ["Material", "Unit", "Previous Balance Store", "Today Total Usage", "In Store Remaining"];
     const rows = traceRows.map(r => [
       r.material,
       r.unit,
@@ -435,7 +481,7 @@ export const DashboardStock: React.FC = () => {
       </head><body>
       <h2>Maharaji Kitchen — Stock Tracing</h2>
       <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[traceMaterial.trim().toLowerCase()]?.display ?? traceMaterial}` : ""}</div>
-      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Today Total Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script>
       </body></html>`;
   };
@@ -461,6 +507,34 @@ export const DashboardStock: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
+
+      {/* UPDATE 6 — LOW STOCK ALERT (Admin & Reception, sits ABOVE Stock Tracing) */}
+      {canSeeTracing && lowStockAlerts.length > 0 && (
+        <div className="bg-gradient-to-br from-red-50 to-amber-50 border-2 border-red-400/50 rounded-2xl p-5 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mk-low-blink" aria-hidden />
+            <h4 className="font-serif text-base font-bold text-red-700">
+              Low Stock Alert
+            </h4>
+            <span className="ml-auto text-[10px] font-mono text-red-700/80">{lowStockAlerts.length} item{lowStockAlerts.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {lowStockAlerts.map(a => (
+              <div
+                key={a.key}
+                className="mk-low-blink flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-red-400/50 bg-white/85"
+              >
+                <span className="text-[12px] font-semibold text-red-800 truncate">{a.material}</span>
+                <span className="text-[11px] font-mono font-black text-red-700">{a.remaining.toFixed(2)} {a.unit}</span>
+              </div>
+            ))}
+          </div>
+          <style>{`
+            @keyframes mkLowBlink { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+            .mk-low-blink { animation: mkLowBlink 1.8s ease-in-out infinite; }
+          `}</style>
+        </div>
+      )}
 
       {/* STOCK TRACING — Admin & Reception only. Placed at the very top. */}
       {canSeeTracing && (
@@ -507,7 +581,8 @@ export const DashboardStock: React.FC = () => {
                 <input
                   type="date"
                   value={traceDay}
-                  onChange={(e) => { setTraceDay(e.target.value); setTracePage(1); }}
+                  max={todayPrefix}
+                  onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceDay(v); setTracePage(1); }}
                   className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
                 />
               </div>
@@ -515,11 +590,11 @@ export const DashboardStock: React.FC = () => {
               <>
                 <div>
                   <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
-                  <input type="date" value={traceFrom} onChange={(e) => { setTraceFrom(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                  <input type="date" value={traceFrom} max={todayPrefix} onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceFrom(v); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
-                  <input type="date" value={traceTo} onChange={(e) => { setTraceTo(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                  <input type="date" value={traceTo} max={todayPrefix} onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceTo(v); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
                 </div>
               </>
             )}
@@ -531,7 +606,7 @@ export const DashboardStock: React.FC = () => {
                 className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
               >
                 <option value="all">All materials</option>
-                {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+                {Object.values(recipeMaterialsList).map(m => <option key={m.display} value={m.display}>{m.display}</option>)}
               </select>
             </div>
           </div>
@@ -543,9 +618,24 @@ export const DashboardStock: React.FC = () => {
                 <thead>
                   <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
                     <th className="p-2.5">#</th>
-                    <th className="p-2.5">Material</th>
+                    <th className="p-2.5">
+                      <div className="flex flex-col gap-1">
+                        <span>Material</span>
+                        {/* Update 4: quick in-column case-insensitive search */}
+                        <div className="relative normal-case">
+                          <Search className="absolute left-2 top-1.5 w-3 h-3 text-mocha" />
+                          <input
+                            type="text"
+                            value={traceMaterialSearch}
+                            onChange={(e) => { setTraceMaterialSearch(e.target.value); setTracePage(1); }}
+                            placeholder="Search material..."
+                            className="pl-6 pr-2 py-1 text-[10px] font-normal tracking-normal border border-gold-rich/20 rounded-md w-40 bg-white focus:outline-none focus:border-gold-rich"
+                          />
+                        </div>
+                      </div>
+                    </th>
                     <th className="p-2.5">Previous Balance Store</th>
-                    <th className="p-2.5">Usage (Per Plate)</th>
+                    <th className="p-2.5">Today Total Usage</th>
                     <th className="p-2.5">In Store Remaining</th>
                   </tr>
                 </thead>
