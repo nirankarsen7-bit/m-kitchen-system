@@ -1102,18 +1102,46 @@ export const DashboardStock: React.FC = () => {
 
             {/* Right: Saved recipes per menu item */}
             <div className="lg:col-span-7 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
-                Saved Recipes ({Object.keys(menuRecipes).length})
-              </h4>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-royal border-l-2 border-gold-rich pl-2">
+                  Saved Recipes ({Object.keys(menuRecipes).length})
+                </h4>
+                {/* Update 4: search saved recipes by dish name or ingredient */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-mocha" />
+                  <input
+                    type="text"
+                    value={recipeSearch}
+                    onChange={(e) => setRecipeSearch(e.target.value)}
+                    placeholder="Search recipes..."
+                    className="pl-7 pr-2 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich w-56"
+                  />
+                </div>
+              </div>
 
               {Object.keys(menuRecipes).length === 0 ? (
                 <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
                   <ChefHat className="w-8 h-8 text-gold-rich/40 mx-auto" />
                   <p className="text-[11px] text-mocha mt-2">No recipes saved yet. Add the first one on the left.</p>
                 </div>
-              ) : (
+              ) : (() => {
+                const q = recipeSearch.trim().toLowerCase();
+                const entries = Object.entries(menuRecipes).filter(([menuItemId, text]) => {
+                  if (!q) return true;
+                  const dish = menuItems.find(m => m.id === menuItemId);
+                  const name = (dish?.name || "").toLowerCase();
+                  return name.includes(q) || (text || "").toLowerCase().includes(q);
+                });
+                if (entries.length === 0) {
+                  return (
+                    <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
+                      <p className="text-[11px] text-mocha">No recipes match "{recipeSearch}".</p>
+                    </div>
+                  );
+                }
+                return (
                 <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-                  {Object.entries(menuRecipes).map(([menuItemId, text]) => {
+                  {entries.map(([menuItemId, text]) => {
                     const dish = menuItems.find(m => m.id === menuItemId);
                     const items = materialUsages.filter(mu => mu.menu_item_id === menuItemId);
                     return (
