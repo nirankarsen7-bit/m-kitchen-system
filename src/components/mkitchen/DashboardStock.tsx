@@ -825,27 +825,22 @@ export const DashboardStock: React.FC = () => {
                       const stockPayments = supplierPayments.filter(p => p.stock_purchase_id === s.id);
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
-                      const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
                       const inHand = inHandFor(s.item_name);
 
                       return (
-                        <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
+                        <tr key={s.id} className="hover:bg-[#FAF7F2]/40 transition-colors">
                           <td className="p-3 text-mocha">{new Date(s.date).toLocaleDateString()}</td>
                           <td className="p-3 font-semibold text-espresso">
                             <span className="inline-flex items-center gap-1.5">
                               {s.item_name}
-                              {isLow && (
-                                <span className="text-[8px] font-black uppercase tracking-wider bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
-                                  Low
-                                </span>
-                              )}
                             </span>
                           </td>
                           <td className="p-3 font-mono font-bold text-espresso">{s.quantity} {s.unit}</td>
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
                           <td className="p-3 text-mocha truncate max-w-[100px]">{s.supplier || "Cash/Direct"}</td>
-                          <td className={`p-3 font-mono font-bold ${isLow ? "text-red-700" : "text-espresso"}`}>{inHand.toFixed(2)} {s.unit}</td>
+                          <td className="p-3 font-mono font-bold text-espresso">{inHand.toFixed(2)} {s.unit}</td>
+
                           <td className="p-3">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isFullyPaid ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                               {isFullyPaid ? "Paid" : `₹${(s.total - totalPaid).toFixed(0)} due`}
