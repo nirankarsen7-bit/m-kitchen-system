@@ -35,6 +35,8 @@ export const DashboardStock: React.FC = () => {
   // Knowledge Base recipe form states
   const [recipeMenuItemId, setRecipeMenuItemId] = useState("");
   const [recipeText, setRecipeText] = useState("");
+  // Update 4: Saved Recipes search
+  const [recipeSearch, setRecipeSearch] = useState("");
 
   // Supplier Payment Modal States (F16)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
