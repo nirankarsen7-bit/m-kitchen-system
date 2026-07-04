@@ -715,19 +715,18 @@ export const DashboardStock: React.FC = () => {
             </h4>
 
             {/* Quick Filter actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-mocha" />
                 <input
                   type="text"
                   placeholder="Filter stock entries..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setLedgerPage(1); }}
                   className="pl-8 pr-3 py-1.5 text-xs border border-gold-rich/10 bg-white rounded-lg select-none"
                 />
               </div>
-              <VoiceSearchMic onResults={(v) => setSearchQuery(v)} />
-              {/* F15: Download option */}
+              <VoiceSearchMic onResults={(v) => { setSearchQuery(v); setLedgerPage(1); }} />
               <Button
                 variant="ghost"
                 size="sm"
@@ -740,13 +739,40 @@ export const DashboardStock: React.FC = () => {
             </div>
           </div>
 
+          {/* Advanced filters: Material, Supplier, Date range */}
+          <div className="bg-white border border-gold-rich/10 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
+              <select value={ledgerMaterial} onChange={(e) => { setLedgerMaterial(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich">
+                <option value="all">All materials</option>
+                {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Supplier / Merchant</label>
+              <select value={ledgerSupplier} onChange={(e) => { setLedgerSupplier(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich">
+                <option value="all">All suppliers</option>
+                {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
+              <input type="date" value={ledgerFrom} onChange={(e) => { setLedgerFrom(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
+              <input type="date" value={ledgerTo} onChange={(e) => { setLedgerTo(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+            </div>
+          </div>
+
           {filteredStock.length === 0 ? (
             <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
               <span className="text-xl"><Package className="w-8 h-8 text-gold-rich/40 mx-auto" /></span>
               <h5 className="font-serif text-sm font-bold text-maroon-royal mt-1">Empty Stock Ledger</h5>
-              <p className="text-[10px] text-mocha leading-relaxed mt-0.5">No raw material matches the search keywords.</p>
+              <p className="text-[10px] text-mocha leading-relaxed mt-0.5">No raw material matches the current filters.</p>
             </div>
           ) : (
+            <>
             <div className="bg-white border border-gold-rich/10 rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse font-sans">
@@ -758,17 +784,18 @@ export const DashboardStock: React.FC = () => {
                       <th className="p-3">Unit Price</th>
                       <th className="p-3">Gross Total</th>
                       <th className="p-3">Merchant</th>
+                      <th className="p-3">In Hand</th>
                       <th className="p-3">Payment</th>
                       <th className="p-3">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gold-rich/5 text-xs">
-                    {filteredStock.map(s => {
+                    {pagedStock.map(s => {
                       const stockPayments = supplierPayments.filter(p => p.stock_purchase_id === s.id);
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
-
                       const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
+                      const inHand = inHandFor(s.item_name);
 
                       return (
                         <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
@@ -787,13 +814,13 @@ export const DashboardStock: React.FC = () => {
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
                           <td className="p-3 text-mocha truncate max-w-[100px]">{s.supplier || "Cash/Direct"}</td>
+                          <td className={`p-3 font-mono font-bold ${isLow ? "text-red-700" : "text-espresso"}`}>{inHand.toFixed(2)} {s.unit}</td>
                           <td className="p-3">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isFullyPaid ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                               {isFullyPaid ? "Paid" : `₹${(s.total - totalPaid).toFixed(0)} due`}
                             </span>
                           </td>
                           <td className="p-3 flex items-center gap-1">
-                            {/* F16: Record payment option */}
                             {!isFullyPaid && (
                               <button
                                 onClick={() => openPaymentModal(s.id)}
@@ -803,7 +830,6 @@ export const DashboardStock: React.FC = () => {
                                 <IndianRupee className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {/* Admin-only: edit & delete purchase entry */}
                             {isAdmin && (
                               <>
                                 <button
@@ -830,10 +856,27 @@ export const DashboardStock: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between text-[11px] text-mocha pt-2">
+              <span>Showing {(ledgerPageSafe - 1) * LEDGER_PAGE_SIZE + 1}–{Math.min(ledgerPageSafe * LEDGER_PAGE_SIZE, filteredStock.length)} of {filteredStock.length}</span>
+              {ledgerTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setLedgerPage(Math.max(1, ledgerPageSafe - 1))} disabled={ledgerPageSafe === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  {Array.from({ length: ledgerTotalPages }).map((_, i) => (
+                    <button key={i} onClick={() => setLedgerPage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${ledgerPageSafe === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setLedgerPage(Math.min(ledgerTotalPages, ledgerPageSafe + 1))} disabled={ledgerPageSafe === ledgerTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+            </div>
+            </>
           )}
         </div>
 
       </div>
+
+
 
       {/* Low Stock detail breakdown — Admin only (≥70% consumption rule) */}
       {isAdmin && lowStockList.length > 0 && (
