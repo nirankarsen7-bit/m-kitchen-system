@@ -450,7 +450,7 @@ export const DashboardStock: React.FC = () => {
     : `${traceFrom || "—"} to ${traceTo || traceFrom || "—"}`;
 
   const handleTraceExportCSV = () => {
-    const headers = ["Material", "Unit", "Previous Balance Store", "Usage (Per Plate)", "In Store Remaining"];
+    const headers = ["Material", "Unit", "Previous Balance Store", "Today Total Usage", "In Store Remaining"];
     const rows = traceRows.map(r => [
       r.material,
       r.unit,
