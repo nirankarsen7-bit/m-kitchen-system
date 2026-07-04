@@ -399,7 +399,7 @@ export const DashboardStock: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
 
-      {/* LOW STOCK ALERT BANNER — Admin only, blinking */}
+      {/* LOW STOCK ALERT — Admin only, ≥75% consumption. Quantities in units. */}
       {isAdmin && lowStockList.length > 0 && (
         <div className="low-stock-blink border-2 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5 animate-pulse" />
@@ -408,18 +408,154 @@ export const DashboardStock: React.FC = () => {
               Low Stock Alert — {lowStockList.length} material{lowStockList.length > 1 ? "s" : ""} need{lowStockList.length > 1 ? "" : "s"} restock
             </h4>
             <p className="text-[11px] text-red-900/80 mt-1">
-              These materials have crossed 70% consumption. Restock soon to avoid running out.
+              Materials with 75% or more of stock already consumed. Restock soon to avoid running out.
             </p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lowStockList.map((ls, i) => (
-                <span key={i} className="text-[10px] font-bold uppercase tracking-wider bg-white/80 text-red-800 px-2 py-0.5 rounded border border-red-400">
-                  {ls.material} · {Math.round(ls.percentConsumed * 100)}% used
+                <span key={i} className="text-[10px] font-bold bg-white/85 text-red-800 px-2 py-1 rounded border border-red-400">
+                  <span className="uppercase tracking-wider">{ls.material}</span>
+                  <span className="ml-1 font-mono">· In-Hand: {ls.currentStock.toFixed(2)} {ls.unit}</span>
                 </span>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      {/* LOW STOCK DETAILS — placed directly under Low Stock Alert */}
+      {isAdmin && (
+        <div className="bg-white border-2 border-red-200 rounded-2xl p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Low Stock Details
+            </h4>
+            <p className="text-[11px] text-mocha">
+              Formula: <span className="font-mono font-bold">Added − Used = In-Hand</span>
+            </p>
+          </div>
+
+          {lowStockList.length === 0 ? (
+            <p className="text-[11px] text-mocha bg-cream-warm/40 rounded-lg p-3">
+              No materials are currently in low-stock condition (75%+ consumption).
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStockList.map((ls, idx) => {
+                const info = materialStats[ls.material.trim().toLowerCase()];
+                const lastPurchase = info?.purchases[info.purchases.length - 1];
+                const lastInHandAfterAdd = info ? info.totalPurchased : 0; // running total after last add (added quantities only)
+                return (
+                  <div key={idx} className="bg-red-50/50 p-3 rounded-xl border border-red-300 text-[11px] space-y-1">
+                    <div className="font-serif text-sm font-bold text-espresso mb-1">{ls.material}</div>
+                    <div className="flex justify-between"><span className="text-mocha">Last in hand Stock after Adding</span><span className="font-mono font-bold">{lastInHandAfterAdd.toFixed(2)} {ls.unit}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Last added Date</span><span className="font-mono">{lastPurchase ? new Date(lastPurchase.date).toLocaleDateString() : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Last added Quantity</span><span className="font-mono font-bold">{lastPurchase ? `${lastPurchase.quantity} ${lastPurchase.unit}` : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Consumed</span><span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span></div>
+                    <div className="flex justify-between border-t border-red-200 pt-1 mt-1"><span className="font-bold text-red-700">Net Stock left In-Hand</span><span className="font-mono font-black text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Update 1.4 — Raw material + date filter tracing */}
+          <div className="border-t border-red-200 pt-4 space-y-3">
+            <h5 className="text-xs font-bold uppercase tracking-wider text-maroon-royal flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5" /> Filter by Raw Material & Date
+            </h5>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
+                <select
+                  value={detailMaterial}
+                  onChange={(e) => { setDetailMaterial(e.target.value); setDetailPage(1); }}
+                  className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+                >
+                  <option value="all">All materials</option>
+                  {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
+                <input type="date" value={detailFrom} onChange={(e) => { setDetailFrom(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
+                <input type="date" value={detailTo} onChange={(e) => { setDetailTo(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button variant="ghost" size="sm" onClick={handleDownloadTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
+                  <Download className="w-3.5 h-3.5" /> <span>Download</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handlePrintTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
+                  <Printer className="w-3.5 h-3.5" /> <span>Print</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Summary strip for the selected material */}
+            {detailMaterial !== "all" && materialStats[detailMaterial.trim().toLowerCase()] && (() => {
+              const info = materialStats[detailMaterial.trim().toLowerCase()];
+              return (
+                <div className="bg-cream-warm/40 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Total Added (to date)</div><div className="font-mono font-black text-espresso">{info.totalPurchased.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Consumed</div><div className="font-mono font-black text-espresso">{info.consumed.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Present In-Hand</div><div className="font-mono font-black text-maroon-royal">{info.inHand.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Purchase Entries</div><div className="font-mono font-black text-espresso">{info.purchases.length}</div></div>
+                </div>
+              );
+            })()}
+
+            {/* Trace table */}
+            <div className="bg-white border border-gold-rich/10 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
+                      <th className="p-2.5">#</th>
+                      <th className="p-2.5">Date</th>
+                      <th className="p-2.5">Material</th>
+                      <th className="p-2.5">Added</th>
+                      <th className="p-2.5">In-Hand Before Add</th>
+                      <th className="p-2.5">In-Hand After Add</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gold-rich/5">
+                    {pagedTrace.length === 0 ? (
+                      <tr><td colSpan={6} className="p-4 text-center text-mocha text-[11px]">No stock-add entries match the filter.</td></tr>
+                    ) : pagedTrace.map((r, i) => (
+                      <tr key={i} className="hover:bg-[#FAF7F2]/40">
+                        <td className="p-2.5 text-mocha">{(traceSafePage - 1) * DETAIL_PAGE_SIZE + i + 1}</td>
+                        <td className="p-2.5 text-mocha">{new Date(r.date).toLocaleDateString()}</td>
+                        <td className="p-2.5 font-semibold text-espresso">{r.material}</td>
+                        <td className="p-2.5 font-mono font-bold text-success">+ {r.added} {r.unit}</td>
+                        <td className="p-2.5 font-mono">{r.inHandBefore.toFixed(2)} {r.unit}</td>
+                        <td className="p-2.5 font-mono font-bold text-maroon-royal">{r.inHandAfter.toFixed(2)} {r.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {traceRows.length > DETAIL_PAGE_SIZE && (
+              <div className="flex items-center justify-between text-[11px] text-mocha">
+                <span>Showing {(traceSafePage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(traceSafePage * DETAIL_PAGE_SIZE, traceRows.length)} of {traceRows.length}</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setDetailPage(Math.max(1, traceSafePage - 1))} disabled={traceSafePage === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  {Array.from({ length: traceTotalPages }).map((_, i) => (
+                    <button key={i} onClick={() => setDetailPage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${traceSafePage === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setDetailPage(Math.min(traceTotalPages, traceSafePage + 1))} disabled={traceSafePage === traceTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* HEADER BAR */}
       <div className="border-b border-gold-rich/10 pb-4">
