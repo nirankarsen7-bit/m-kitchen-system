@@ -306,94 +306,157 @@ export const DashboardStock: React.FC = () => {
     toast.success("Stock ledger exported successfully!");
   };
 
-  // ---- Low Stock Details filter (Update 1.4) ----
-  const [detailMaterial, setDetailMaterial] = useState("all");
-  const [detailFrom, setDetailFrom] = useState("");
-  const [detailTo, setDetailTo] = useState("");
-  const [detailPage, setDetailPage] = useState(1);
-  const DETAIL_PAGE_SIZE = 10;
+  // ---- Stock Tracing (Admin/Reception) ----
+  const [traceMode, setTraceMode] = useState<"daily" | "range">("daily");
+  const [traceDay, setTraceDay] = useState(todayPrefix); // yyyy-mm-dd
+  const [traceFrom, setTraceFrom] = useState(todayPrefix);
+  const [traceTo, setTraceTo] = useState(todayPrefix);
+  const [traceMaterial, setTraceMaterial] = useState("all");
+  const [tracePage, setTracePage] = useState(1);
+  const TRACE_PAGE_SIZE = 10;
 
-  // Build step-by-step trace rows for the selected material(s) in date range
-  const traceRows = useMemo(() => {
-    const keys = detailMaterial === "all"
-      ? Object.keys(materialStats)
-      : [detailMaterial.trim().toLowerCase()].filter(k => materialStats[k]);
-    const rows: { date: string; material: string; unit: string; added: number; inHandBefore: number; inHandAfter: number }[] = [];
-    keys.forEach(k => {
-      const info = materialStats[k];
-      if (!info) return;
-      let running = 0;
-      info.purchases.forEach(p => {
-        const before = running;
-        running += p.quantity;
-        rows.push({
-          date: p.date,
-          material: info.display,
-          unit: info.unit,
-          added: p.quantity,
-          inHandBefore: before,
-          inHandAfter: running,
-        });
+  const traceWindow = useMemo(() => {
+    if (traceMode === "daily") {
+      const s = new Date(traceDay + "T00:00:00").getTime();
+      const e = new Date(traceDay + "T23:59:59.999").getTime();
+      return { start: s, end: e };
+    }
+    const s = new Date((traceFrom || todayPrefix) + "T00:00:00").getTime();
+    const e = new Date((traceTo || traceFrom || todayPrefix) + "T23:59:59.999").getTime();
+    return { start: s, end: e };
+  }, [traceMode, traceDay, traceFrom, traceTo, todayPrefix]);
+
+  // Per-material consumption in [start,end] window using per-plate recipes on CONFIRMED order items
+  const consumedInRange = (start: number, end: number) => {
+    const out: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status !== OrderItemStatus.CONFIRMED) return;
+      if (!oi.created_at) return;
+      const t = new Date(oi.created_at).getTime();
+      if (t < start || t > end) return;
+      materialUsages.forEach(mu => {
+        if (mu.menu_item_id !== oi.menu_item_id) return;
+        const key = mu.material_name.trim().toLowerCase();
+        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
       });
     });
-    return rows
-      .filter(r => {
-        const d = new Date(r.date).getTime();
-        if (detailFrom && d < new Date(detailFrom).getTime()) return false;
-        if (detailTo && d > new Date(detailTo + "T23:59:59").getTime()) return false;
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [materialStats, detailMaterial, detailFrom, detailTo]);
+    return out;
+  };
 
-  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / DETAIL_PAGE_SIZE));
-  const traceSafePage = Math.min(detailPage, traceTotalPages);
-  const pagedTrace = traceRows.slice((traceSafePage - 1) * DETAIL_PAGE_SIZE, traceSafePage * DETAIL_PAGE_SIZE);
+  const purchasedBefore = (start: number) => {
+    const out: Record<string, number> = {};
+    stockPurchases.forEach(sp => {
+      if (new Date(sp.date).getTime() >= start) return;
+      const key = sp.item_name.trim().toLowerCase();
+      out[key] = (out[key] || 0) + sp.quantity;
+    });
+    return out;
+  };
 
-  const handleDownloadTrace = () => {
-    const headers = ["Date", "Material", "Added Qty", "Unit", "In-Hand Before Add", "In-Hand After Add"];
+  const consumedBefore = (start: number) => {
+    const out: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status !== OrderItemStatus.CONFIRMED) return;
+      if (!oi.created_at) return;
+      if (new Date(oi.created_at).getTime() >= start) return;
+      materialUsages.forEach(mu => {
+        if (mu.menu_item_id !== oi.menu_item_id) return;
+        const key = mu.material_name.trim().toLowerCase();
+        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
+      });
+    });
+    return out;
+  };
+
+  const traceRows = useMemo(() => {
+    const { start, end } = traceWindow;
+    const pBefore = purchasedBefore(start);
+    const cBefore = consumedBefore(start);
+    const cRange = consumedInRange(start, end);
+    const keys = Object.keys(materialStats);
+    const rows = keys.map(k => {
+      const info = materialStats[k];
+      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      const usage = cRange[k] || 0;
+      const remaining = previous - usage;
+      return {
+        key: k,
+        material: info.display,
+        unit: info.unit,
+        previous,
+        usage,
+        remaining,
+      };
+    });
+    const filtered = traceMaterial === "all"
+      ? rows
+      : rows.filter(r => r.key === traceMaterial.trim().toLowerCase());
+    return filtered.sort((a, b) => a.material.localeCompare(b.material));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [traceWindow, materialStats, materialUsages, orderItems, stockPurchases, traceMaterial]);
+
+  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / TRACE_PAGE_SIZE));
+  const traceSafePage = Math.min(tracePage, traceTotalPages);
+  const pagedTrace = traceRows.slice((traceSafePage - 1) * TRACE_PAGE_SIZE, traceSafePage * TRACE_PAGE_SIZE);
+
+  const traceRangeLabel = traceMode === "daily"
+    ? traceDay
+    : `${traceFrom || "—"} to ${traceTo || traceFrom || "—"}`;
+
+  const handleTraceExportCSV = () => {
+    const headers = ["Material", "Unit", "Previous Balance Store", "Usage (Per Plate)", "In Store Remaining"];
     const rows = traceRows.map(r => [
-      new Date(r.date).toLocaleString(),
       r.material,
-      r.added,
       r.unit,
-      r.inHandBefore.toFixed(2),
-      r.inHandAfter.toFixed(2),
+      r.previous.toFixed(2),
+      r.usage.toFixed(2),
+      r.remaining.toFixed(2),
     ]);
     const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csv));
-    link.setAttribute("download", `maharaji_stock_trace_${todayPrefix}.csv`);
+    link.setAttribute("download", `maharaji_stock_tracing_${traceRangeLabel.replace(/\s+/g, "_")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Trace report downloaded!");
+    toast.success("Stock tracing exported (Excel/CSV)!");
   };
 
-  const handlePrintTrace = () => {
-    const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+  const buildTracePrintHtml = () => {
     const rowsHtml = traceRows.map(r => `
       <tr>
-        <td>${new Date(r.date).toLocaleString()}</td>
         <td>${r.material}</td>
-        <td style="text-align:right">${r.added} ${r.unit}</td>
-        <td style="text-align:right">${r.inHandBefore.toFixed(2)} ${r.unit}</td>
-        <td style="text-align:right">${r.inHandAfter.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.previous.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.usage.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right;${r.remaining <= 0 ? "color:#b91c1c;font-weight:bold;" : ""}">${r.remaining.toFixed(2)} ${r.unit}</td>
       </tr>`).join("");
-    w.document.write(`<!doctype html><html><head><title>Stock Trace Report</title>
+    return `<!doctype html><html><head><title>Stock Tracing Report</title>
       <style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#faf7f2}</style>
       </head><body>
-      <h2>Maharaji Kitchen — Raw Material Trace</h2>
-      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()}${detailMaterial !== "all" ? ` · Material: ${materialStats[detailMaterial.trim().toLowerCase()]?.display}` : ""}${detailFrom ? ` · From: ${detailFrom}` : ""}${detailTo ? ` · To: ${detailTo}` : ""}</div>
-      <table><thead><tr><th>Date</th><th>Material</th><th>Added</th><th>In-Hand Before</th><th>In-Hand After</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <h2>Maharaji Kitchen — Stock Tracing</h2>
+      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[traceMaterial.trim().toLowerCase()]?.display ?? traceMaterial}` : ""}</div>
+      <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script>
-      </body></html>`);
+      </body></html>`;
+  };
+
+  const handleTracePrint = () => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+    w.document.write(buildTracePrintHtml());
     w.document.close();
   };
 
-  // Set of low-stock material names (lowercased) for row highlighting
-  const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
+  const handleTracePDF = () => {
+    // Uses browser's Print → Save as PDF flow (no extra dependencies).
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to save as PDF."); return; }
+    w.document.write(buildTracePrintHtml().replace("<title>Stock Tracing Report</title>", "<title>Stock Tracing Report (PDF)</title>"));
+    w.document.close();
+    toast.success("Choose 'Save as PDF' in the print dialog.");
+  };
+
+
 
 
   return (
