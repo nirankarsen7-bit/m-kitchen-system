@@ -508,6 +508,34 @@ export const DashboardStock: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
 
+      {/* UPDATE 6 — LOW STOCK ALERT (Admin & Reception, sits ABOVE Stock Tracing) */}
+      {canSeeTracing && lowStockAlerts.length > 0 && (
+        <div className="bg-gradient-to-br from-red-50 to-amber-50 border-2 border-red-400/50 rounded-2xl p-5 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mk-low-blink" aria-hidden />
+            <h4 className="font-serif text-base font-bold text-red-700">
+              Low Stock Alert
+            </h4>
+            <span className="ml-auto text-[10px] font-mono text-red-700/80">{lowStockAlerts.length} item{lowStockAlerts.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {lowStockAlerts.map(a => (
+              <div
+                key={a.key}
+                className="mk-low-blink flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-red-400/50 bg-white/85"
+              >
+                <span className="text-[12px] font-semibold text-red-800 truncate">{a.material}</span>
+                <span className="text-[11px] font-mono font-black text-red-700">{a.remaining.toFixed(2)} {a.unit}</span>
+              </div>
+            ))}
+          </div>
+          <style>{`
+            @keyframes mkLowBlink { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+            .mk-low-blink { animation: mkLowBlink 1.8s ease-in-out infinite; }
+          `}</style>
+        </div>
+      )}
+
       {/* STOCK TRACING — Admin & Reception only. Placed at the very top. */}
       {canSeeTracing && (
         <div className="bg-white border-2 border-gold-rich/20 rounded-2xl p-5 space-y-4 shadow-sm">
@@ -553,7 +581,8 @@ export const DashboardStock: React.FC = () => {
                 <input
                   type="date"
                   value={traceDay}
-                  onChange={(e) => { setTraceDay(e.target.value); setTracePage(1); }}
+                  max={todayPrefix}
+                  onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceDay(v); setTracePage(1); }}
                   className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
                 />
               </div>
@@ -561,11 +590,11 @@ export const DashboardStock: React.FC = () => {
               <>
                 <div>
                   <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
-                  <input type="date" value={traceFrom} onChange={(e) => { setTraceFrom(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                  <input type="date" value={traceFrom} max={todayPrefix} onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceFrom(v); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
-                  <input type="date" value={traceTo} onChange={(e) => { setTraceTo(e.target.value); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+                  <input type="date" value={traceTo} max={todayPrefix} onChange={(e) => { const v = e.target.value; if (v && v > todayPrefix) { toast.error("Future dates are not allowed."); return; } setTraceTo(v); setTracePage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
                 </div>
               </>
             )}
@@ -577,7 +606,7 @@ export const DashboardStock: React.FC = () => {
                 className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
               >
                 <option value="all">All materials</option>
-                {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+                {Object.values(recipeMaterialsList).map(m => <option key={m.display} value={m.display}>{m.display}</option>)}
               </select>
             </div>
           </div>
@@ -589,9 +618,24 @@ export const DashboardStock: React.FC = () => {
                 <thead>
                   <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
                     <th className="p-2.5">#</th>
-                    <th className="p-2.5">Material</th>
+                    <th className="p-2.5">
+                      <div className="flex flex-col gap-1">
+                        <span>Material</span>
+                        {/* Update 4: quick in-column case-insensitive search */}
+                        <div className="relative normal-case">
+                          <Search className="absolute left-2 top-1.5 w-3 h-3 text-mocha" />
+                          <input
+                            type="text"
+                            value={traceMaterialSearch}
+                            onChange={(e) => { setTraceMaterialSearch(e.target.value); setTracePage(1); }}
+                            placeholder="Search material..."
+                            className="pl-6 pr-2 py-1 text-[10px] font-normal tracking-normal border border-gold-rich/20 rounded-md w-40 bg-white focus:outline-none focus:border-gold-rich"
+                          />
+                        </div>
+                      </div>
+                    </th>
                     <th className="p-2.5">Previous Balance Store</th>
-                    <th className="p-2.5">Usage (Per Plate)</th>
+                    <th className="p-2.5">Today Total Usage</th>
                     <th className="p-2.5">In Store Remaining</th>
                   </tr>
                 </thead>
