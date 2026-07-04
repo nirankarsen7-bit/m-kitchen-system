@@ -393,7 +393,6 @@ export const DashboardStock: React.FC = () => {
 
   const traceRows = useMemo(() => {
     const { start, end } = traceWindow;
-    const pBefore = purchasedBefore(start);
     const cBefore = consumedBefore(start);
     // Update 3: same deduction logic as Low Stock (materialUsages × confirmed sold),
     // scoped to the date window so today's sales reflect in "Today Total Usage".
@@ -401,7 +400,8 @@ export const DashboardStock: React.FC = () => {
     const keys = Object.keys(recipeMaterialsList);
     const rows = keys.map(k => {
       const info = recipeMaterialsList[k];
-      const previous = Math.max(0, (pBefore[k] || 0) - (cBefore[k] || 0));
+      // Previous Balance = current Purchases Ledger stock (total purchased − consumed before window)
+      const previous = Math.max(0, (totalPurchasedByKey[k] || 0) - (cBefore[k] || 0));
       const usage = cRange[k] || 0;
       const remaining = previous - usage;
       return {
