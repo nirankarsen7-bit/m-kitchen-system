@@ -22,7 +22,7 @@ export const DashboardStock: React.FC = () => {
   const menuRecipes = useStore(state => state.menuRecipes);
   const setMenuRecipe = useStore(state => state.setMenuRecipe);
   const deleteMenuRecipe = useStore(state => state.deleteMenuRecipe);
-  const getLowStockMaterials = useStore(state => state.getLowStockMaterials);
+  
 
   // Form States
   const [itemName, setItemName] = useState("");
