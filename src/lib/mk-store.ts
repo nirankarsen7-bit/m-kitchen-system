@@ -1056,14 +1056,14 @@ export const useStore = create<AppState>((set, get) => {
         consumedByName[key].consumed += sold * mu.quantity_per_plate;
       });
 
-      // Low-stock when consumption >= 70% of purchased
+      // Low-stock when consumption >= 75% of purchased
       const lowStock: { material: string; currentStock: number; estimatedUsage: number; totalPurchased: number; percentConsumed: number; unit: string }[] = [];
       Object.keys(purchasedByName).forEach(key => {
         const purchased = purchasedByName[key].total;
         const consumed = consumedByName[key]?.consumed || 0;
         if (purchased <= 0) return;
         const percent = consumed / purchased;
-        if (percent >= 0.7) {
+        if (percent >= 0.75) {
           lowStock.push({
             material: purchasedByName[key].display,
             currentStock: Math.max(0, purchased - consumed),

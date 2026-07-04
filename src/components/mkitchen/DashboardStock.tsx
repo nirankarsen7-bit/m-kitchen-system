@@ -1,9 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil } from "lucide-react";
-import { UserRole } from "@/lib/mk-types";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil, Printer, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { UserRole, OrderItemStatus, type StockPurchase } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
   // Zustand States
@@ -14,6 +14,7 @@ export const DashboardStock: React.FC = () => {
   const supplierPayments = useStore(state => state.supplierPayments);
   const addSupplierPayment = useStore(state => state.addSupplierPayment);
   const currentUser = useStore(state => state.currentUser);
+  const orderItems = useStore(state => state.orderItems);
 
   // F11 / F8: Material usage tracking (Knowledge Base recipe text per menu item)
   const menuItems = useStore(state => state.menuItems);
@@ -218,17 +219,70 @@ export const DashboardStock: React.FC = () => {
     .filter(s => s.date.startsWith(todayPrefix))
     .reduce((acc, s) => acc + s.total, 0);
 
-  // Filter lists
-  const filteredStock = stockPurchases.filter(stock => {
-    const matchesSearch = stock.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          stock.supplier.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesUnit = selectedUnit === "all" || stock.unit === selectedUnit;
-    return matchesSearch && matchesUnit;
-  });
+  // ---- Per-material aggregated stats (added − used = in-hand) ----
+  const materialStats = useMemo(() => {
+    const soldByMenuItem: Record<string, number> = {};
+    orderItems.forEach(oi => {
+      if (oi.status === OrderItemStatus.CONFIRMED) {
+        soldByMenuItem[oi.menu_item_id] = (soldByMenuItem[oi.menu_item_id] || 0) + oi.quantity;
+      }
+    });
+    const consumedByName: Record<string, number> = {};
+    materialUsages.forEach(mu => {
+      const sold = soldByMenuItem[mu.menu_item_id] || 0;
+      if (sold <= 0) return;
+      const key = mu.material_name.trim().toLowerCase();
+      consumedByName[key] = (consumedByName[key] || 0) + sold * mu.quantity_per_plate;
+    });
+    const byKey: Record<string, { display: string; unit: string; purchases: StockPurchase[]; totalPurchased: number; consumed: number; inHand: number }> = {};
+    stockPurchases.forEach(sp => {
+      const key = sp.item_name.trim().toLowerCase();
+      if (!byKey[key]) byKey[key] = { display: sp.item_name, unit: sp.unit, purchases: [], totalPurchased: 0, consumed: 0, inHand: 0 };
+      byKey[key].purchases.push(sp);
+      byKey[key].totalPurchased += sp.quantity;
+    });
+    Object.keys(byKey).forEach(k => {
+      byKey[k].purchases.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      byKey[k].consumed = consumedByName[k] || 0;
+      byKey[k].inHand = Math.max(0, byKey[k].totalPurchased - byKey[k].consumed);
+    });
+    return byKey;
+  }, [stockPurchases, materialUsages, orderItems]);
 
-  // F15: Export CSV/Excel download
+  const inHandFor = (name: string) => materialStats[name.trim().toLowerCase()]?.inHand ?? 0;
+
+  // ---- Ledger filters (Update 3) ----
+  const [ledgerMaterial, setLedgerMaterial] = useState("all");
+  const [ledgerSupplier, setLedgerSupplier] = useState("all");
+  const [ledgerFrom, setLedgerFrom] = useState("");
+  const [ledgerTo, setLedgerTo] = useState("");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const LEDGER_PAGE_SIZE = 10;
+
+  const uniqueMaterials = Array.from(new Set(stockPurchases.map(s => s.item_name))).sort();
+  const uniqueSuppliers = Array.from(new Set(stockPurchases.map(s => s.supplier).filter(Boolean))).sort();
+
+  const filteredStock = stockPurchases
+    .filter(stock => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = !q || stock.item_name.toLowerCase().includes(q) || stock.supplier.toLowerCase().includes(q);
+      const matchesUnit = selectedUnit === "all" || stock.unit === selectedUnit;
+      const matchesMaterial = ledgerMaterial === "all" || stock.item_name === ledgerMaterial;
+      const matchesSupplier = ledgerSupplier === "all" || stock.supplier === ledgerSupplier;
+      const d = new Date(stock.date).getTime();
+      const matchesFrom = !ledgerFrom || d >= new Date(ledgerFrom).getTime();
+      const matchesTo = !ledgerTo || d <= new Date(ledgerTo + "T23:59:59").getTime();
+      return matchesSearch && matchesUnit && matchesMaterial && matchesSupplier && matchesFrom && matchesTo;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const ledgerTotalPages = Math.max(1, Math.ceil(filteredStock.length / LEDGER_PAGE_SIZE));
+  const ledgerPageSafe = Math.min(ledgerPage, ledgerTotalPages);
+  const pagedStock = filteredStock.slice((ledgerPageSafe - 1) * LEDGER_PAGE_SIZE, ledgerPageSafe * LEDGER_PAGE_SIZE);
+
+  // F15: Export CSV/Excel download (respects filters + includes In-hand)
   const handleExportCSV = () => {
-    const headers = ["Date", "Item Name", "Qty", "Unit", "Unit Price (INR)", "Total Value (INR)", "Supplier", "Notes"];
+    const headers = ["Date", "Item Name", "Qty", "Unit", "Unit Price (INR)", "Total Value (INR)", "Supplier", "In Hand (current)", "Notes"];
     const rows = filteredStock.map(s => [
       new Date(s.date).toLocaleDateString(),
       s.item_name,
@@ -237,29 +291,115 @@ export const DashboardStock: React.FC = () => {
       s.unit_price,
       s.total,
       s.supplier,
-      s.notes || ""
+      `${inHandFor(s.item_name).toFixed(2)} ${s.unit}`,
+      (s.notes || "").replace(/,/g, ";"),
     ]);
-
     const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `maharaji_stock_invoice_${todayPrefix}.csv`);
+    link.setAttribute("download", `maharaji_stock_ledger_${todayPrefix}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Stock data exported successfully!");
+    toast.success("Stock ledger exported successfully!");
+  };
+
+  // ---- Low Stock Details filter (Update 1.4) ----
+  const [detailMaterial, setDetailMaterial] = useState("all");
+  const [detailFrom, setDetailFrom] = useState("");
+  const [detailTo, setDetailTo] = useState("");
+  const [detailPage, setDetailPage] = useState(1);
+  const DETAIL_PAGE_SIZE = 10;
+
+  // Build step-by-step trace rows for the selected material(s) in date range
+  const traceRows = useMemo(() => {
+    const keys = detailMaterial === "all"
+      ? Object.keys(materialStats)
+      : [detailMaterial.trim().toLowerCase()].filter(k => materialStats[k]);
+    const rows: { date: string; material: string; unit: string; added: number; inHandBefore: number; inHandAfter: number }[] = [];
+    keys.forEach(k => {
+      const info = materialStats[k];
+      if (!info) return;
+      let running = 0;
+      info.purchases.forEach(p => {
+        const before = running;
+        running += p.quantity;
+        rows.push({
+          date: p.date,
+          material: info.display,
+          unit: info.unit,
+          added: p.quantity,
+          inHandBefore: before,
+          inHandAfter: running,
+        });
+      });
+    });
+    return rows
+      .filter(r => {
+        const d = new Date(r.date).getTime();
+        if (detailFrom && d < new Date(detailFrom).getTime()) return false;
+        if (detailTo && d > new Date(detailTo + "T23:59:59").getTime()) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [materialStats, detailMaterial, detailFrom, detailTo]);
+
+  const traceTotalPages = Math.max(1, Math.ceil(traceRows.length / DETAIL_PAGE_SIZE));
+  const traceSafePage = Math.min(detailPage, traceTotalPages);
+  const pagedTrace = traceRows.slice((traceSafePage - 1) * DETAIL_PAGE_SIZE, traceSafePage * DETAIL_PAGE_SIZE);
+
+  const handleDownloadTrace = () => {
+    const headers = ["Date", "Material", "Added Qty", "Unit", "In-Hand Before Add", "In-Hand After Add"];
+    const rows = traceRows.map(r => [
+      new Date(r.date).toLocaleString(),
+      r.material,
+      r.added,
+      r.unit,
+      r.inHandBefore.toFixed(2),
+      r.inHandAfter.toFixed(2),
+    ]);
+    const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csv));
+    link.setAttribute("download", `maharaji_stock_trace_${todayPrefix}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Trace report downloaded!");
+  };
+
+  const handlePrintTrace = () => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("Popup blocked. Allow popups to print."); return; }
+    const rowsHtml = traceRows.map(r => `
+      <tr>
+        <td>${new Date(r.date).toLocaleString()}</td>
+        <td>${r.material}</td>
+        <td style="text-align:right">${r.added} ${r.unit}</td>
+        <td style="text-align:right">${r.inHandBefore.toFixed(2)} ${r.unit}</td>
+        <td style="text-align:right">${r.inHandAfter.toFixed(2)} ${r.unit}</td>
+      </tr>`).join("");
+    w.document.write(`<!doctype html><html><head><title>Stock Trace Report</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#faf7f2}</style>
+      </head><body>
+      <h2>Maharaji Kitchen — Raw Material Trace</h2>
+      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()}${detailMaterial !== "all" ? ` · Material: ${materialStats[detailMaterial.trim().toLowerCase()]?.display}` : ""}${detailFrom ? ` · From: ${detailFrom}` : ""}${detailTo ? ` · To: ${detailTo}` : ""}</div>
+      <table><thead><tr><th>Date</th><th>Material</th><th>Added</th><th>In-Hand Before</th><th>In-Hand After</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <script>window.onload=()=>{window.print();}</script>
+      </body></html>`);
+    w.document.close();
   };
 
   // Set of low-stock material names (lowercased) for row highlighting
   const lowStockNameSet = new Set(lowStockList.map(ls => ls.material.trim().toLowerCase()));
 
+
   return (
     <div className="space-y-6 font-sans">
 
-      {/* LOW STOCK ALERT BANNER — Admin only, blinking */}
+      {/* LOW STOCK ALERT — Admin only, ≥75% consumption. Quantities in units. */}
       {isAdmin && lowStockList.length > 0 && (
         <div className="low-stock-blink border-2 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5 animate-pulse" />
@@ -268,18 +408,154 @@ export const DashboardStock: React.FC = () => {
               Low Stock Alert — {lowStockList.length} material{lowStockList.length > 1 ? "s" : ""} need{lowStockList.length > 1 ? "" : "s"} restock
             </h4>
             <p className="text-[11px] text-red-900/80 mt-1">
-              These materials have crossed 70% consumption. Restock soon to avoid running out.
+              Materials with 75% or more of stock already consumed. Restock soon to avoid running out.
             </p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lowStockList.map((ls, i) => (
-                <span key={i} className="text-[10px] font-bold uppercase tracking-wider bg-white/80 text-red-800 px-2 py-0.5 rounded border border-red-400">
-                  {ls.material} · {Math.round(ls.percentConsumed * 100)}% used
+                <span key={i} className="text-[10px] font-bold bg-white/85 text-red-800 px-2 py-1 rounded border border-red-400">
+                  <span className="uppercase tracking-wider">{ls.material}</span>
+                  <span className="ml-1 font-mono">· In-Hand: {ls.currentStock.toFixed(2)} {ls.unit}</span>
                 </span>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      {/* LOW STOCK DETAILS — placed directly under Low Stock Alert */}
+      {isAdmin && (
+        <div className="bg-white border-2 border-red-200 rounded-2xl p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Low Stock Details
+            </h4>
+            <p className="text-[11px] text-mocha">
+              Formula: <span className="font-mono font-bold">Added − Used = In-Hand</span>
+            </p>
+          </div>
+
+          {lowStockList.length === 0 ? (
+            <p className="text-[11px] text-mocha bg-cream-warm/40 rounded-lg p-3">
+              No materials are currently in low-stock condition (75%+ consumption).
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStockList.map((ls, idx) => {
+                const info = materialStats[ls.material.trim().toLowerCase()];
+                const lastPurchase = info?.purchases[info.purchases.length - 1];
+                const lastInHandAfterAdd = info ? info.totalPurchased : 0; // running total after last add (added quantities only)
+                return (
+                  <div key={idx} className="bg-red-50/50 p-3 rounded-xl border border-red-300 text-[11px] space-y-1">
+                    <div className="font-serif text-sm font-bold text-espresso mb-1">{ls.material}</div>
+                    <div className="flex justify-between"><span className="text-mocha">Last in hand Stock after Adding</span><span className="font-mono font-bold">{lastInHandAfterAdd.toFixed(2)} {ls.unit}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Last added Date</span><span className="font-mono">{lastPurchase ? new Date(lastPurchase.date).toLocaleDateString() : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Last added Quantity</span><span className="font-mono font-bold">{lastPurchase ? `${lastPurchase.quantity} ${lastPurchase.unit}` : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-mocha">Consumed</span><span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span></div>
+                    <div className="flex justify-between border-t border-red-200 pt-1 mt-1"><span className="font-bold text-red-700">Net Stock left In-Hand</span><span className="font-mono font-black text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Update 1.4 — Raw material + date filter tracing */}
+          <div className="border-t border-red-200 pt-4 space-y-3">
+            <h5 className="text-xs font-bold uppercase tracking-wider text-maroon-royal flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5" /> Filter by Raw Material & Date
+            </h5>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
+                <select
+                  value={detailMaterial}
+                  onChange={(e) => { setDetailMaterial(e.target.value); setDetailPage(1); }}
+                  className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich"
+                >
+                  <option value="all">All materials</option>
+                  {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
+                <input type="date" value={detailFrom} onChange={(e) => { setDetailFrom(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
+                <input type="date" value={detailTo} onChange={(e) => { setDetailTo(e.target.value); setDetailPage(1); }} className="w-full px-3 py-2 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button variant="ghost" size="sm" onClick={handleDownloadTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
+                  <Download className="w-3.5 h-3.5" /> <span>Download</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handlePrintTrace} className="flex-1 py-2 text-[10px] bg-white border-gold-rich/20">
+                  <Printer className="w-3.5 h-3.5" /> <span>Print</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Summary strip for the selected material */}
+            {detailMaterial !== "all" && materialStats[detailMaterial.trim().toLowerCase()] && (() => {
+              const info = materialStats[detailMaterial.trim().toLowerCase()];
+              return (
+                <div className="bg-cream-warm/40 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Total Added (to date)</div><div className="font-mono font-black text-espresso">{info.totalPurchased.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Consumed</div><div className="font-mono font-black text-espresso">{info.consumed.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Present In-Hand</div><div className="font-mono font-black text-maroon-royal">{info.inHand.toFixed(2)} {info.unit}</div></div>
+                  <div><div className="text-mocha uppercase text-[9px] font-bold tracking-wider">Purchase Entries</div><div className="font-mono font-black text-espresso">{info.purchases.length}</div></div>
+                </div>
+              );
+            })()}
+
+            {/* Trace table */}
+            <div className="bg-white border border-gold-rich/10 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
+                      <th className="p-2.5">#</th>
+                      <th className="p-2.5">Date</th>
+                      <th className="p-2.5">Material</th>
+                      <th className="p-2.5">Added</th>
+                      <th className="p-2.5">In-Hand Before Add</th>
+                      <th className="p-2.5">In-Hand After Add</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gold-rich/5">
+                    {pagedTrace.length === 0 ? (
+                      <tr><td colSpan={6} className="p-4 text-center text-mocha text-[11px]">No stock-add entries match the filter.</td></tr>
+                    ) : pagedTrace.map((r, i) => (
+                      <tr key={i} className="hover:bg-[#FAF7F2]/40">
+                        <td className="p-2.5 text-mocha">{(traceSafePage - 1) * DETAIL_PAGE_SIZE + i + 1}</td>
+                        <td className="p-2.5 text-mocha">{new Date(r.date).toLocaleDateString()}</td>
+                        <td className="p-2.5 font-semibold text-espresso">{r.material}</td>
+                        <td className="p-2.5 font-mono font-bold text-success">+ {r.added} {r.unit}</td>
+                        <td className="p-2.5 font-mono">{r.inHandBefore.toFixed(2)} {r.unit}</td>
+                        <td className="p-2.5 font-mono font-bold text-maroon-royal">{r.inHandAfter.toFixed(2)} {r.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {traceRows.length > DETAIL_PAGE_SIZE && (
+              <div className="flex items-center justify-between text-[11px] text-mocha">
+                <span>Showing {(traceSafePage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(traceSafePage * DETAIL_PAGE_SIZE, traceRows.length)} of {traceRows.length}</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setDetailPage(Math.max(1, traceSafePage - 1))} disabled={traceSafePage === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  {Array.from({ length: traceTotalPages }).map((_, i) => (
+                    <button key={i} onClick={() => setDetailPage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${traceSafePage === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setDetailPage(Math.min(traceTotalPages, traceSafePage + 1))} disabled={traceSafePage === traceTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* HEADER BAR */}
       <div className="border-b border-gold-rich/10 pb-4">
@@ -439,19 +715,18 @@ export const DashboardStock: React.FC = () => {
             </h4>
 
             {/* Quick Filter actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-mocha" />
                 <input
                   type="text"
                   placeholder="Filter stock entries..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setLedgerPage(1); }}
                   className="pl-8 pr-3 py-1.5 text-xs border border-gold-rich/10 bg-white rounded-lg select-none"
                 />
               </div>
-              <VoiceSearchMic onResults={(v) => setSearchQuery(v)} />
-              {/* F15: Download option */}
+              <VoiceSearchMic onResults={(v) => { setSearchQuery(v); setLedgerPage(1); }} />
               <Button
                 variant="ghost"
                 size="sm"
@@ -464,13 +739,40 @@ export const DashboardStock: React.FC = () => {
             </div>
           </div>
 
+          {/* Advanced filters: Material, Supplier, Date range */}
+          <div className="bg-white border border-gold-rich/10 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Material</label>
+              <select value={ledgerMaterial} onChange={(e) => { setLedgerMaterial(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich">
+                <option value="all">All materials</option>
+                {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">Supplier / Merchant</label>
+              <select value={ledgerSupplier} onChange={(e) => { setLedgerSupplier(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich">
+                <option value="all">All suppliers</option>
+                {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">From</label>
+              <input type="date" value={ledgerFrom} onChange={(e) => { setLedgerFrom(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+            </div>
+            <div>
+              <label className="block text-[9px] text-maroon-royal uppercase font-bold tracking-wider mb-1">To</label>
+              <input type="date" value={ledgerTo} onChange={(e) => { setLedgerTo(e.target.value); setLedgerPage(1); }} className="w-full px-2.5 py-1.5 text-xs bg-white border border-gold-rich/20 rounded-lg focus:outline-none focus:border-gold-rich" />
+            </div>
+          </div>
+
           {filteredStock.length === 0 ? (
             <div className="text-center p-8 bg-white border border-gold-rich/5 rounded-2xl">
               <span className="text-xl"><Package className="w-8 h-8 text-gold-rich/40 mx-auto" /></span>
               <h5 className="font-serif text-sm font-bold text-maroon-royal mt-1">Empty Stock Ledger</h5>
-              <p className="text-[10px] text-mocha leading-relaxed mt-0.5">No raw material matches the search keywords.</p>
+              <p className="text-[10px] text-mocha leading-relaxed mt-0.5">No raw material matches the current filters.</p>
             </div>
           ) : (
+            <>
             <div className="bg-white border border-gold-rich/10 rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse font-sans">
@@ -482,17 +784,18 @@ export const DashboardStock: React.FC = () => {
                       <th className="p-3">Unit Price</th>
                       <th className="p-3">Gross Total</th>
                       <th className="p-3">Merchant</th>
+                      <th className="p-3">In Hand</th>
                       <th className="p-3">Payment</th>
                       <th className="p-3">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gold-rich/5 text-xs">
-                    {filteredStock.map(s => {
+                    {pagedStock.map(s => {
                       const stockPayments = supplierPayments.filter(p => p.stock_purchase_id === s.id);
                       const totalPaid = stockPayments.reduce((sum, p) => sum + p.amount, 0);
                       const isFullyPaid = totalPaid >= s.total;
-
                       const isLow = isAdmin && lowStockNameSet.has(s.item_name.trim().toLowerCase());
+                      const inHand = inHandFor(s.item_name);
 
                       return (
                         <tr key={s.id} className={`hover:bg-[#FAF7F2]/40 transition-colors ${isLow ? "low-stock-row" : ""}`}>
@@ -511,13 +814,13 @@ export const DashboardStock: React.FC = () => {
                           <td className="p-3 font-mono text-mocha">₹{s.unit_price} /unit</td>
                           <td className="p-3 font-mono font-bold text-maroon-royal font-black">₹{s.total.toFixed(0)}</td>
                           <td className="p-3 text-mocha truncate max-w-[100px]">{s.supplier || "Cash/Direct"}</td>
+                          <td className={`p-3 font-mono font-bold ${isLow ? "text-red-700" : "text-espresso"}`}>{inHand.toFixed(2)} {s.unit}</td>
                           <td className="p-3">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isFullyPaid ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                               {isFullyPaid ? "Paid" : `₹${(s.total - totalPaid).toFixed(0)} due`}
                             </span>
                           </td>
                           <td className="p-3 flex items-center gap-1">
-                            {/* F16: Record payment option */}
                             {!isFullyPaid && (
                               <button
                                 onClick={() => openPaymentModal(s.id)}
@@ -527,7 +830,6 @@ export const DashboardStock: React.FC = () => {
                                 <IndianRupee className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {/* Admin-only: edit & delete purchase entry */}
                             {isAdmin && (
                               <>
                                 <button
@@ -554,52 +856,30 @@ export const DashboardStock: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between text-[11px] text-mocha pt-2">
+              <span>Showing {(ledgerPageSafe - 1) * LEDGER_PAGE_SIZE + 1}–{Math.min(ledgerPageSafe * LEDGER_PAGE_SIZE, filteredStock.length)} of {filteredStock.length}</span>
+              {ledgerTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setLedgerPage(Math.max(1, ledgerPageSafe - 1))} disabled={ledgerPageSafe === 1} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  {Array.from({ length: ledgerTotalPages }).map((_, i) => (
+                    <button key={i} onClick={() => setLedgerPage(i + 1)} className={`px-2 py-0.5 rounded border text-[11px] font-mono cursor-pointer ${ledgerPageSafe === i + 1 ? "bg-maroon-royal text-cream-ivory border-maroon-royal" : "bg-white border-gold-rich/20"}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setLedgerPage(Math.min(ledgerTotalPages, ledgerPageSafe + 1))} disabled={ledgerPageSafe === ledgerTotalPages} className="p-1 rounded border border-gold-rich/20 bg-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+            </div>
+            </>
           )}
         </div>
 
       </div>
 
-      {/* Low Stock detail breakdown — Admin only (≥70% consumption rule) */}
-      {isAdmin && lowStockList.length > 0 && (
-        <div className="border-t-2 border-red-300 pt-6">
-          <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-5 space-y-3 shadow-lg">
-            <h4 className="font-serif text-base font-bold text-red-700 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 animate-pulse" />
-              Low Stock Details ({lowStockList.length})
-            </h4>
-            <p className="text-[11px] text-mocha leading-relaxed">
-              Materials below have crossed 70% consumption based on Knowledge Base per-plate usage vs confirmed orders.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lowStockList.map((ls, idx) => (
-                <div key={idx} className="bg-white p-3 rounded-xl border border-red-300">
-                  <div className="flex items-center justify-between">
-                    <div className="font-bold text-espresso text-sm">{ls.material}</div>
-                    <span className="text-[9px] font-black uppercase bg-red-600 text-white px-1.5 py-0.5 rounded">
-                      {Math.round(ls.percentConsumed * 100)}% used
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-mocha mt-1">
-                    Purchased: <span className="font-mono font-bold">{ls.totalPurchased.toFixed(2)} {ls.unit}</span>
-                  </div>
-                  <div className="text-[10px] text-mocha">
-                    Consumed: <span className="font-mono font-bold">{ls.estimatedUsage.toFixed(2)} {ls.unit}</span>
-                  </div>
-                  <div className="text-[10px] text-mocha">
-                    Stock left: <span className="font-mono font-bold text-red-700">{ls.currentStock.toFixed(2)} {ls.unit}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full bg-red-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-red-600"
-                      style={{ width: `${Math.min(100, Math.round(ls.percentConsumed * 100))}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+
+
+
+
 
       {/* F11: RAW MATERIAL PER-PLATE USAGE TRACKING (Admin only) */}
       {isAdmin && (
