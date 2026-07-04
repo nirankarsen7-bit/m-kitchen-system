@@ -221,6 +221,15 @@ export const DashboardStock: React.FC = () => {
     .filter(s => s.date.startsWith(todayPrefix))
     .reduce((acc, s) => acc + s.total, 0);
 
+  // Normalize material names so Purchases Ledger ↔ Saved Recipes match even with
+  // extra spaces, case differences, or simple singular/plural ("Tomato" vs "Tomatoes").
+  const normName = (s: string) => {
+    const base = (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (base.length > 3 && base.endsWith("es")) return base.slice(0, -2);
+    if (base.length > 3 && base.endsWith("s")) return base.slice(0, -1);
+    return base;
+  };
+
   // ---- Per-material aggregated stats (added − used = in-hand) ----
   const materialStats = useMemo(() => {
     const soldByMenuItem: Record<string, number> = {};
@@ -233,12 +242,12 @@ export const DashboardStock: React.FC = () => {
     materialUsages.forEach(mu => {
       const sold = soldByMenuItem[mu.menu_item_id] || 0;
       if (sold <= 0) return;
-      const key = mu.material_name.trim().toLowerCase();
+      const key = normName(mu.material_name);
       consumedByName[key] = (consumedByName[key] || 0) + sold * mu.quantity_per_plate;
     });
     const byKey: Record<string, { display: string; unit: string; purchases: StockPurchase[]; totalPurchased: number; consumed: number; inHand: number }> = {};
     stockPurchases.forEach(sp => {
-      const key = sp.item_name.trim().toLowerCase();
+      const key = normName(sp.item_name);
       if (!byKey[key]) byKey[key] = { display: sp.item_name, unit: sp.unit, purchases: [], totalPurchased: 0, consumed: 0, inHand: 0 };
       byKey[key].purchases.push(sp);
       byKey[key].totalPurchased += sp.quantity;
@@ -251,7 +260,7 @@ export const DashboardStock: React.FC = () => {
     return byKey;
   }, [stockPurchases, materialUsages, orderItems]);
 
-  const inHandFor = (name: string) => materialStats[name.trim().toLowerCase()]?.inHand ?? 0;
+  const inHandFor = (name: string) => materialStats[normName(name)]?.inHand ?? 0;
 
   // ---- Ledger filters (Update 3) ----
   const [ledgerMaterial, setLedgerMaterial] = useState("all");
@@ -338,7 +347,7 @@ export const DashboardStock: React.FC = () => {
       if (t < start || t > end) return;
       materialUsages.forEach(mu => {
         if (mu.menu_item_id !== oi.menu_item_id) return;
-        const key = mu.material_name.trim().toLowerCase();
+        const key = normName(mu.material_name);
         out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
       });
     });
@@ -353,7 +362,7 @@ export const DashboardStock: React.FC = () => {
   const totalPurchasedByKey = useMemo(() => {
     const out: Record<string, number> = {};
     stockPurchases.forEach(sp => {
-      const key = sp.item_name.trim().toLowerCase();
+      const key = normName(sp.item_name);
       out[key] = (out[key] || 0) + sp.quantity;
     });
     return out;
@@ -367,7 +376,7 @@ export const DashboardStock: React.FC = () => {
       if (new Date(oi.created_at).getTime() >= start) return;
       materialUsages.forEach(mu => {
         if (mu.menu_item_id !== oi.menu_item_id) return;
-        const key = mu.material_name.trim().toLowerCase();
+        const key = normName(mu.material_name);
         out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
       });
     });
@@ -379,7 +388,7 @@ export const DashboardStock: React.FC = () => {
   const recipeMaterialsList = useMemo(() => {
     const map: Record<string, { display: string; unit: string }> = {};
     materialUsages.forEach(mu => {
-      const key = mu.material_name.trim().toLowerCase();
+      const key = normName(mu.material_name);
       if (!map[key]) map[key] = { display: mu.material_name, unit: mu.unit };
     });
     // Prefer purchased-unit display if a matching purchase exists (keeps ledger consistent)
@@ -417,7 +426,7 @@ export const DashboardStock: React.FC = () => {
     });
     const byDropdown = traceMaterial === "all"
       ? rows
-      : rows.filter(r => r.key === traceMaterial.trim().toLowerCase());
+      : rows.filter(r => r.key === normName(traceMaterial));
     const q = traceMaterialSearch.trim().toLowerCase();
     const bySearch = !q ? byDropdown : byDropdown.filter(r => r.material.toLowerCase().includes(q));
     return bySearch.sort((a, b) => a.material.localeCompare(b.material));
@@ -487,7 +496,7 @@ export const DashboardStock: React.FC = () => {
       <style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#faf7f2}</style>
       </head><body>
       <h2>Maharaji Kitchen — Stock Tracing</h2>
-      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[traceMaterial.trim().toLowerCase()]?.display ?? traceMaterial}` : ""}</div>
+      <div style="font-size:12px;color:#555">Generated: ${new Date().toLocaleString()} · Range: ${traceRangeLabel}${traceMaterial !== "all" ? ` · Material: ${materialStats[normName(traceMaterial)]?.display ?? traceMaterial}` : ""}</div>
       <table><thead><tr><th>Material</th><th>Previous Balance</th><th>Today Total Usage</th><th>In Store Remaining</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script>
       </body></html>`;
