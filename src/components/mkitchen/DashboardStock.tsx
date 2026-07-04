@@ -230,8 +230,36 @@ export const DashboardStock: React.FC = () => {
     return base;
   };
 
+  const normalizeMeasureUnit = (raw: string) => {
+    const u = (raw || "").toLowerCase().replace(/\./g, "").trim();
+    if (["g", "gm", "gms", "grm", "gram", "grams"].includes(u)) return "g";
+    if (["kg", "kgs", "kilogram", "kilograms"].includes(u)) return "kg";
+    if (["ml", "millilitre", "milliliter", "millilitres", "milliliters"].includes(u)) return "ml";
+    if (["l", "lt", "ltr", "litre", "liter", "litres", "liters"].includes(u)) return "litres";
+    if (["pc", "pcs", "piece", "pieces", "unit", "units", "nos", "no"].includes(u)) return "units";
+    return u;
+  };
+
+  const convertQuantity = (quantity: number, fromUnit: string, toUnit: string) => {
+    const from = normalizeMeasureUnit(fromUnit);
+    const to = normalizeMeasureUnit(toUnit);
+    if (!Number.isFinite(quantity) || !from || !to || from === to) return quantity;
+    if (from === "g" && to === "kg") return quantity / 1000;
+    if (from === "kg" && to === "g") return quantity * 1000;
+    if (from === "ml" && to === "litres") return quantity / 1000;
+    if (from === "litres" && to === "ml") return quantity * 1000;
+    return quantity;
+  };
+
   // ---- Per-material aggregated stats (added − used = in-hand) ----
   const materialStats = useMemo(() => {
+    const byKey: Record<string, { display: string; unit: string; purchases: StockPurchase[]; totalPurchased: number; consumed: number; inHand: number }> = {};
+    stockPurchases.forEach(sp => {
+      const key = normName(sp.item_name);
+      if (!byKey[key]) byKey[key] = { display: sp.item_name, unit: sp.unit, purchases: [], totalPurchased: 0, consumed: 0, inHand: 0 };
+      byKey[key].purchases.push(sp);
+      byKey[key].totalPurchased += sp.quantity;
+    });
     const soldByMenuItem: Record<string, number> = {};
     orderItems.forEach(oi => {
       if (oi.status === OrderItemStatus.CONFIRMED) {
@@ -243,14 +271,7 @@ export const DashboardStock: React.FC = () => {
       const sold = soldByMenuItem[mu.menu_item_id] || 0;
       if (sold <= 0) return;
       const key = normName(mu.material_name);
-      consumedByName[key] = (consumedByName[key] || 0) + sold * mu.quantity_per_plate;
-    });
-    const byKey: Record<string, { display: string; unit: string; purchases: StockPurchase[]; totalPurchased: number; consumed: number; inHand: number }> = {};
-    stockPurchases.forEach(sp => {
-      const key = normName(sp.item_name);
-      if (!byKey[key]) byKey[key] = { display: sp.item_name, unit: sp.unit, purchases: [], totalPurchased: 0, consumed: 0, inHand: 0 };
-      byKey[key].purchases.push(sp);
-      byKey[key].totalPurchased += sp.quantity;
+      consumedByName[key] = (consumedByName[key] || 0) + convertQuantity(sold * mu.quantity_per_plate, mu.unit, byKey[key]?.unit || mu.unit);
     });
     Object.keys(byKey).forEach(k => {
       byKey[k].purchases.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -261,6 +282,31 @@ export const DashboardStock: React.FC = () => {
   }, [stockPurchases, materialUsages, orderItems]);
 
   const inHandFor = (name: string) => materialStats[normName(name)]?.inHand ?? 0;
+
+  const stockKeyMeta = useMemo(() => {
+    const out: Record<string, { display: string; unit: string; latest: number }> = {};
+    stockPurchases.forEach(sp => {
+      const key = normName(sp.item_name);
+      const latest = new Date(sp.date).getTime();
+      if (!out[key] || latest >= out[key].latest) {
+        out[key] = { display: sp.item_name, unit: sp.unit, latest };
+      }
+    });
+    return out;
+  }, [stockPurchases]);
+
+  const resolveStockKey = (recipeKey: string) => {
+    if (stockKeyMeta[recipeKey]) return recipeKey;
+    const words = recipeKey.split(" ").filter(w => w.length > 1);
+    if (words.length === 0) return recipeKey;
+    const matches = Object.keys(stockKeyMeta)
+      .filter(stockKey => {
+        const stockWords = stockKey.split(" ");
+        return words.every(w => stockWords.includes(w)) || stockKey.includes(recipeKey) || recipeKey.includes(stockKey);
+      })
+      .sort((a, b) => stockKeyMeta[b].latest - stockKeyMeta[a].latest);
+    return matches[0] || recipeKey;
+  };
 
   // ---- Ledger filters (Update 3) ----
   const [ledgerMaterial, setLedgerMaterial] = useState("all");
@@ -338,7 +384,7 @@ export const DashboardStock: React.FC = () => {
   }, [traceMode, traceDay, traceFrom, traceTo, todayPrefix]);
 
   // Per-material consumption in [start,end] window using per-plate recipes on CONFIRMED order items
-  const consumedInRange = (start: number, end: number) => {
+  const consumedInRange = (start: number, end: number, targetUnits: Record<string, string> = {}) => {
     const out: Record<string, number> = {};
     orderItems.forEach(oi => {
       if (oi.status !== OrderItemStatus.CONFIRMED) return;
@@ -348,7 +394,7 @@ export const DashboardStock: React.FC = () => {
       materialUsages.forEach(mu => {
         if (mu.menu_item_id !== oi.menu_item_id) return;
         const key = normName(mu.material_name);
-        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
+        out[key] = (out[key] || 0) + convertQuantity(oi.quantity * mu.quantity_per_plate, mu.unit, targetUnits[key] || mu.unit);
       });
     });
     return out;
@@ -368,7 +414,7 @@ export const DashboardStock: React.FC = () => {
     return out;
   }, [stockPurchases]);
 
-  const consumedBefore = (start: number) => {
+  const consumedBefore = (start: number, targetUnits: Record<string, string> = {}) => {
     const out: Record<string, number> = {};
     orderItems.forEach(oi => {
       if (oi.status !== OrderItemStatus.CONFIRMED) return;
@@ -377,7 +423,7 @@ export const DashboardStock: React.FC = () => {
       materialUsages.forEach(mu => {
         if (mu.menu_item_id !== oi.menu_item_id) return;
         const key = normName(mu.material_name);
-        out[key] = (out[key] || 0) + oi.quantity * mu.quantity_per_plate;
+        out[key] = (out[key] || 0) + convertQuantity(oi.quantity * mu.quantity_per_plate, mu.unit, targetUnits[key] || mu.unit);
       });
     });
     return out;
@@ -386,37 +432,40 @@ export const DashboardStock: React.FC = () => {
   // Update 2: source-of-truth = Saved Recipes (materialUsages). Every material in a saved recipe
   // shows up in Stock Tracing, even if it hasn't been purchased yet.
   const recipeMaterialsList = useMemo(() => {
-    const map: Record<string, { display: string; unit: string }> = {};
+    const map: Record<string, { display: string; unit: string; stockKey: string }> = {};
     materialUsages.forEach(mu => {
       const key = normName(mu.material_name);
-      if (!map[key]) map[key] = { display: mu.material_name, unit: mu.unit };
+      if (!map[key]) map[key] = { display: mu.material_name, unit: mu.unit, stockKey: key };
     });
     // Prefer purchased-unit display if a matching purchase exists (keeps ledger consistent)
     Object.keys(map).forEach(k => {
-      const info = materialStats[k];
-      if (info) map[k] = { display: info.display, unit: info.unit };
+      const stockKey = resolveStockKey(k);
+      const info = materialStats[stockKey];
+      if (info) map[k] = { display: info.display, unit: info.unit, stockKey };
     });
     return map;
-  }, [materialUsages, materialStats]);
+  }, [materialUsages, materialStats, stockKeyMeta]);
 
   // Update 4: in-column search on the Material column (case-insensitive)
   const [traceMaterialSearch, setTraceMaterialSearch] = useState("");
 
   const traceRows = useMemo(() => {
     const { start, end } = traceWindow;
-    const cBefore = consumedBefore(start);
+    const targetUnits = Object.fromEntries(Object.entries(recipeMaterialsList).map(([k, info]) => [k, info.unit]));
+    const cBefore = consumedBefore(start, targetUnits);
     // Update 3: same deduction logic as Low Stock (materialUsages × confirmed sold),
     // scoped to the date window so today's sales reflect in "Today Total Usage".
-    const cRange = consumedInRange(start, end);
+    const cRange = consumedInRange(start, end, targetUnits);
     const keys = Object.keys(recipeMaterialsList);
     const rows = keys.map(k => {
       const info = recipeMaterialsList[k];
       // Previous Balance = current Purchases Ledger stock (total purchased − consumed before window)
-      const previous = Math.max(0, (totalPurchasedByKey[k] || 0) - (cBefore[k] || 0));
+      const previous = Math.max(0, (totalPurchasedByKey[info.stockKey] ?? totalPurchasedByKey[k] ?? 0) - (cBefore[k] || 0));
       const usage = cRange[k] || 0;
       const remaining = previous - usage;
       return {
         key: k,
+        stockKey: info.stockKey,
         material: info.display,
         unit: info.unit,
         previous,
@@ -426,7 +475,7 @@ export const DashboardStock: React.FC = () => {
     });
     const byDropdown = traceMaterial === "all"
       ? rows
-      : rows.filter(r => r.key === normName(traceMaterial));
+      : rows.filter(r => r.key === traceMaterial || r.key === normName(traceMaterial) || r.stockKey === normName(traceMaterial));
     const q = traceMaterialSearch.trim().toLowerCase();
     const bySearch = !q ? byDropdown : byDropdown.filter(r => r.material.toLowerCase().includes(q));
     return bySearch.sort((a, b) => a.material.localeCompare(b.material));
@@ -438,14 +487,15 @@ export const DashboardStock: React.FC = () => {
   const lowStockAlerts = useMemo(() => {
     const todayStart = new Date(todayPrefix + "T00:00:00").getTime();
     const todayEnd = new Date(todayPrefix + "T23:59:59.999").getTime();
-    const cBefore = consumedBefore(todayStart);
-    const cToday = consumedInRange(todayStart, todayEnd);
+    const targetUnits = Object.fromEntries(Object.entries(recipeMaterialsList).map(([k, info]) => [k, info.unit]));
+    const cBefore = consumedBefore(todayStart, targetUnits);
+    const cToday = consumedInRange(todayStart, todayEnd, targetUnits);
     const alerts: { key: string; material: string; unit: string; remaining: number }[] = [];
     Object.keys(recipeMaterialsList).forEach(k => {
       const info = recipeMaterialsList[k];
       // Update 1 & 3: Previous Balance = total purchases − consumed before today,
       // matching the Purchases Ledger's in-hand quantity so the alert actually appears.
-      const previous = Math.max(0, (totalPurchasedByKey[k] || 0) - (cBefore[k] || 0));
+      const previous = Math.max(0, (totalPurchasedByKey[info.stockKey] ?? totalPurchasedByKey[k] ?? 0) - (cBefore[k] || 0));
       if (previous <= 0) return;
       const usage = cToday[k] || 0;
       const remaining = previous - usage;
