@@ -1,9 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useStore, parseRecipeText } from "@/lib/mk-store";
 import { Button, Card, FormInput, VoiceSearchMic } from "@/components/mkitchen/PremiumUI";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil } from "lucide-react";
-import { UserRole } from "@/lib/mk-types";
+import { Package, Plus, Trash2, Search, Download, Upload, X, IndianRupee, CreditCard, TriangleAlert as AlertTriangle, ChefHat, Scale, ArrowUpRight, Pencil, Printer, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { UserRole, OrderItemStatus, type StockPurchase } from "@/lib/mk-types";
 
 export const DashboardStock: React.FC = () => {
   // Zustand States
