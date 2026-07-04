@@ -642,22 +642,7 @@ export const DashboardStock: React.FC = () => {
                 <thead>
                   <tr className="bg-[#FAF7F2] text-[9px] uppercase font-bold tracking-wider text-maroon-royal">
                     <th className="p-2.5">#</th>
-                    <th className="p-2.5">
-                      <div className="flex flex-col gap-1">
-                        <span>Material</span>
-                        {/* Update 4: quick in-column case-insensitive search */}
-                        <div className="relative normal-case">
-                          <Search className="absolute left-2 top-1.5 w-3 h-3 text-mocha" />
-                          <input
-                            type="text"
-                            value={traceMaterialSearch}
-                            onChange={(e) => { setTraceMaterialSearch(e.target.value); setTracePage(1); }}
-                            placeholder="Search material..."
-                            className="pl-6 pr-2 py-1 text-[10px] font-normal tracking-normal border border-gold-rich/20 rounded-md w-40 bg-white focus:outline-none focus:border-gold-rich"
-                          />
-                        </div>
-                      </div>
-                    </th>
+                    <th className="p-2.5">Material</th>
                     <th className="p-2.5">Previous Balance Store</th>
                     <th className="p-2.5">Today Total Usage</th>
                     <th className="p-2.5">In Store Remaining</th>
