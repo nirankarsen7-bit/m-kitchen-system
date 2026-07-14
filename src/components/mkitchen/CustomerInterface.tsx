@@ -24,6 +24,110 @@ const getCategoryIcon = (iconName: string) => {
   }
 };
 
+// ============================================================
+// SMART SEARCH ENGINE (fuzzy + synonyms + phonetic + category)
+// ============================================================
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  naan: ["nan", "bread", "roti", "kulcha", "tandoori bread", "butter naan", "garlic naan"],
+  roti: ["chapati", "phulka", "bread", "tandoori roti", "rumali"],
+  paratha: ["parantha", "prantha", "laccha"],
+  chicken: ["chiken", "chikken", "murg", "murgh", "kukkad", "poultry"],
+  mutton: ["muton", "lamb", "goat", "gosht", "mtn"],
+  fish: ["machli", "machhi", "seafood"],
+  prawn: ["prawns", "shrimp", "jhinga"],
+  egg: ["eggs", "anda", "ande", "omelette", "omlet"],
+  paneer: ["panir", "cottage cheese", "cheese"],
+  veg: ["veggie", "vegetarian", "vegetable", "sabzi", "sabji"],
+  "non veg": ["nonveg", "non-veg", "non vegetarian", "meat"],
+  biryani: ["biriyani", "biriani", "biryni", "briyani", "dum biryani"],
+  pulao: ["pulav", "pilaf", "pilau", "rice"],
+  rice: ["chawal", "bhaat", "fried rice", "pulao"],
+  dal: ["daal", "dhal", "lentil", "lentils", "tadka"],
+  curry: ["gravy", "masala", "salan", "sabzi"],
+  tandoori: ["tandori", "tandur", "grilled"],
+  kebab: ["kabab", "kabob", "seekh", "tikka"],
+  tikka: ["tika", "tikkas"],
+  masala: ["masaala", "spiced", "spicy"],
+  butter: ["makhani", "makhan"],
+  soup: ["shorba", "broth"],
+  starter: ["starters", "appetizer", "appetizers", "snack", "snacks", "entree"],
+  dessert: ["desserts", "sweet", "sweets", "mithai", "meetha"],
+  drink: ["drinks", "beverage", "beverages", "cold drink", "juice", "lassi", "shake"],
+  chinese: ["chinees", "chinis", "hakka", "noodles", "manchurian", "chowmein", "chow mein"],
+  noodles: ["noodle", "chowmein", "chow mein", "hakka"],
+  momo: ["momos", "dumpling", "dumplings"],
+  ice: ["icecream", "ice cream", "kulfi"],
+  tea: ["chai", "chaai"],
+  coffee: ["cofee", "kofi"],
+};
+
+const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
+const expandQuery = (q: string): string[] => {
+  const base = normalize(q);
+  if (!base) return [];
+  const tokens = base.split(" ").filter(Boolean);
+  const expansions = new Set<string>([base, ...tokens]);
+  for (const tok of tokens) {
+    for (const [key, alts] of Object.entries(SEARCH_SYNONYMS)) {
+      if (key === tok || alts.includes(tok)) {
+        expansions.add(key);
+        alts.forEach(a => expansions.add(a));
+      }
+    }
+  }
+  return Array.from(expansions);
+};
+
+const levenshtein = (a: string, b: string): number => {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) m[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + cost);
+    }
+  }
+  return m[a.length][b.length];
+};
+
+const fuzzyTokenMatch = (queryTok: string, targetTok: string) => {
+  if (!queryTok || !targetTok) return false;
+  if (targetTok.includes(queryTok) || queryTok.includes(targetTok)) return true;
+  const maxLen = Math.max(queryTok.length, targetTok.length);
+  if (maxLen < 4) return false;
+  const tolerance = maxLen <= 5 ? 1 : maxLen <= 8 ? 2 : 3;
+  return levenshtein(queryTok, targetTok) <= tolerance;
+};
+
+const smartSearchMatch = (query: string, haystackParts: string[]): boolean => {
+  const q = normalize(query);
+  if (!q) return true;
+  const expansions = expandQuery(query);
+  const haystack = normalize(haystackParts.filter(Boolean).join(" "));
+  if (!haystack) return false;
+  const hayTokens = haystack.split(" ").filter(Boolean);
+  // direct substring on any expansion
+  for (const exp of expansions) {
+    if (exp && haystack.includes(exp)) return true;
+  }
+  // every query token must fuzzy-match some haystack token (via expansions)
+  const qTokens = q.split(" ").filter(Boolean);
+  return qTokens.every(qt => {
+    const variants = new Set<string>([qt]);
+    for (const [key, alts] of Object.entries(SEARCH_SYNONYMS)) {
+      if (key === qt || alts.includes(qt)) {
+        variants.add(key);
+        alts.forEach(a => variants.add(a));
+      }
+    }
+    return Array.from(variants).some(v => hayTokens.some(ht => fuzzyTokenMatch(v, ht)));
+  });
+};
+
 export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ currentTableNum }) => {
   const tableNum = currentTableNum || (new URLSearchParams(window.location.search).get("table") ? parseInt(new URLSearchParams(window.location.search).get("table")!, 10) : NaN);
 
@@ -202,12 +306,18 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
     setTimeout(() => setOrderSuccess(false), 5000);
   };
 
-  // Filter food list
+  // Filter food list (smart fuzzy + synonym-aware search)
   const filteredMenuItems = menuItems.filter(item => {
     const matchesCategory = activeCategory === "all" || item.category_id === activeCategory;
     const matchesFoodType = foodTypeFilter === "all" || (foodTypeFilter === "non_veg" ? item.food_type === "non_veg" : (item.food_type ?? "veg") === "veg");
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const cat = categories.find(c => c.id === item.category_id);
+    const matchesSearch = !searchQuery.trim() || smartSearchMatch(searchQuery, [
+      item.name,
+      item.description,
+      cat?.name ?? "",
+      cat?.description ?? "",
+      item.food_type === "non_veg" ? "non veg meat" : "veg vegetarian",
+    ]);
     return matchesCategory && matchesFoodType && matchesSearch;
   });
 
