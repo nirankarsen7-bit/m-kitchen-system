@@ -111,10 +111,10 @@ const levenshtein = (a: string, b: string): number => {
 const fuzzyTokenMatch = (queryTok: string, targetTok: string) => {
   if (!queryTok || !targetTok) return false;
   if (targetTok.includes(queryTok) || queryTok.includes(targetTok)) return true;
-  if (compactKey(queryTok).length >= 2 && compactKey(queryTok) === compactKey(targetTok)) return true;
+  if (queryTok.length >= 4 && targetTok.length >= 4 && compactKey(queryTok).length >= 2 && compactKey(queryTok) === compactKey(targetTok)) return true;
   if (queryTok.length >= 5 && targetTok.length >= 5 && phoneticKey(queryTok).length >= 3 && phoneticKey(queryTok) === phoneticKey(targetTok)) return true;
   const maxLen = Math.max(queryTok.length, targetTok.length);
-  if (maxLen < 4) return false;
+  if (maxLen < 4 || Math.min(queryTok.length, targetTok.length) < 4) return false;
   const tolerance = maxLen <= 5 ? 1 : maxLen <= 8 ? 2 : 3;
   return levenshtein(queryTok, targetTok) <= tolerance;
 };
@@ -134,7 +134,7 @@ const smartSearchScore = (query: string, haystackParts: string[]): number => {
     if (!exp) continue;
     if (haystack.includes(exp)) score = Math.max(score, exp.includes(" ") ? 92 : 86);
     const expCompact = compactKey(exp);
-    if (expCompact.length >= 2 && hayTokens.some(ht => compactKey(ht) === expCompact)) score = Math.max(score, 82);
+    if (exp.length >= 4 && expCompact.length >= 2 && hayTokens.some(ht => ht.length >= 4 && compactKey(ht) === expCompact)) score = Math.max(score, 82);
     const expPhonetic = phoneticKey(exp);
     if (exp.length >= 5 && expPhonetic.length >= 3 && hayTokens.some(ht => ht.length >= 5 && phoneticKey(ht) === expPhonetic)) score = Math.max(score, 78);
     if (hayTokens.some(ht => fuzzyTokenMatch(exp, ht))) score = Math.max(score, 72);
