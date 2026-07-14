@@ -28,7 +28,7 @@ const getCategoryIcon = (iconName: string) => {
 // SMART SEARCH ENGINE (fuzzy + synonyms + phonetic + category)
 // ============================================================
 const SEARCH_SYNONYMS: Record<string, string[]> = {
-  naan: ["nan", "bread", "roti", "kulcha", "tandoori bread", "butter naan", "garlic naan"],
+  naan: ["nan", "nun", "none", "non", "naan bread", "bread", "roti", "kulcha", "tandoori bread", "butter naan", "garlic naan"],
   roti: ["chapati", "phulka", "bread", "tandoori roti", "rumali"],
   paratha: ["parantha", "prantha", "laccha"],
   chicken: ["chiken", "chikken", "murg", "murgh", "kukkad", "poultry"],
@@ -63,10 +63,24 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
+const SEARCH_FILLER_WORDS = new Set([
+  "search", "find", "show", "give", "want", "need", "menu", "dish", "dishes", "item", "items", "please", "plz", "for", "me", "the", "a", "an",
+]);
+
+const phoneticKey = (s: string) => {
+  const cleaned = normalize(s).replace(/(.)\1+/g, "$1");
+  if (!cleaned) return "";
+  const first = cleaned[0];
+  const tail = cleaned.slice(1).replace(/[aeiou]/g, "");
+  return `${first}${tail}`;
+};
+
+const compactKey = (s: string) => normalize(s).replace(/[aeiou\s]/g, "").replace(/(.)\1+/g, "$1");
+
 const expandQuery = (q: string): string[] => {
   const base = normalize(q);
   if (!base) return [];
-  const tokens = base.split(" ").filter(Boolean);
+  const tokens = base.split(" ").filter(tok => tok && !SEARCH_FILLER_WORDS.has(tok));
   const expansions = new Set<string>([base, ...tokens]);
   for (const tok of tokens) {
     for (const [key, alts] of Object.entries(SEARCH_SYNONYMS)) {
@@ -97,26 +111,37 @@ const levenshtein = (a: string, b: string): number => {
 const fuzzyTokenMatch = (queryTok: string, targetTok: string) => {
   if (!queryTok || !targetTok) return false;
   if (targetTok.includes(queryTok) || queryTok.includes(targetTok)) return true;
+  if (phoneticKey(queryTok) && phoneticKey(queryTok) === phoneticKey(targetTok)) return true;
+  if (compactKey(queryTok).length >= 2 && compactKey(queryTok) === compactKey(targetTok)) return true;
   const maxLen = Math.max(queryTok.length, targetTok.length);
   if (maxLen < 4) return false;
-  const tolerance = maxLen <= 5 ? 1 : maxLen <= 8 ? 2 : 3;
+  const tolerance = maxLen <= 5 ? 2 : maxLen <= 8 ? 2 : 3;
   return levenshtein(queryTok, targetTok) <= tolerance;
 };
 
-const smartSearchMatch = (query: string, haystackParts: string[]): boolean => {
+const smartSearchScore = (query: string, haystackParts: string[]): number => {
   const q = normalize(query);
-  if (!q) return true;
+  if (!q) return 100;
   const expansions = expandQuery(query);
   const haystack = normalize(haystackParts.filter(Boolean).join(" "));
-  if (!haystack) return false;
+  if (!haystack) return 0;
   const hayTokens = haystack.split(" ").filter(Boolean);
-  // direct substring on any expansion
+  let score = 0;
+
+  if (haystack.includes(q)) score = Math.max(score, 100);
+
   for (const exp of expansions) {
-    if (exp && haystack.includes(exp)) return true;
+    if (!exp) continue;
+    if (haystack.includes(exp)) score = Math.max(score, exp.includes(" ") ? 92 : 86);
+    const expCompact = compactKey(exp);
+    if (expCompact.length >= 2 && hayTokens.some(ht => compactKey(ht) === expCompact)) score = Math.max(score, 82);
+    const expPhonetic = phoneticKey(exp);
+    if (expPhonetic && hayTokens.some(ht => phoneticKey(ht) === expPhonetic)) score = Math.max(score, 78);
+    if (hayTokens.some(ht => fuzzyTokenMatch(exp, ht))) score = Math.max(score, 72);
   }
-  // every query token must fuzzy-match some haystack token (via expansions)
-  const qTokens = q.split(" ").filter(Boolean);
-  return qTokens.every(qt => {
+
+  const qTokens = q.split(" ").filter(tok => tok && !SEARCH_FILLER_WORDS.has(tok));
+  if (qTokens.length > 0 && qTokens.every(qt => {
     const variants = new Set<string>([qt]);
     for (const [key, alts] of Object.entries(SEARCH_SYNONYMS)) {
       if (key === qt || alts.includes(qt)) {
@@ -125,8 +150,14 @@ const smartSearchMatch = (query: string, haystackParts: string[]): boolean => {
       }
     }
     return Array.from(variants).some(v => hayTokens.some(ht => fuzzyTokenMatch(v, ht)));
-  });
+  })) {
+    score = Math.max(score, 70);
+  }
+
+  return score;
 };
+
+const smartSearchMatch = (query: string, haystackParts: string[]): boolean => smartSearchScore(query, haystackParts) >= 60;
 
 export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ currentTableNum }) => {
   const tableNum = currentTableNum || (new URLSearchParams(window.location.search).get("table") ? parseInt(new URLSearchParams(window.location.search).get("table")!, 10) : NaN);
@@ -307,19 +338,30 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
   };
 
   // Filter food list (smart fuzzy + synonym-aware search)
-  const filteredMenuItems = menuItems.filter(item => {
-    const matchesCategory = activeCategory === "all" || item.category_id === activeCategory;
+  const filteredMenuItems = menuItems.map(item => {
     const matchesFoodType = foodTypeFilter === "all" || (foodTypeFilter === "non_veg" ? item.food_type === "non_veg" : (item.food_type ?? "veg") === "veg");
     const cat = categories.find(c => c.id === item.category_id);
-    const matchesSearch = !searchQuery.trim() || smartSearchMatch(searchQuery, [
+    const searchParts = [
       item.name,
       item.description,
       cat?.name ?? "",
       cat?.description ?? "",
       item.food_type === "non_veg" ? "non veg meat" : "veg vegetarian",
-    ]);
-    return matchesCategory && matchesFoodType && matchesSearch;
-  });
+    ];
+    return {
+      item,
+      matchesFoodType,
+      matchesCategory: activeCategory === "all" || item.category_id === activeCategory,
+      searchScore: searchQuery.trim() ? smartSearchScore(searchQuery, searchParts) : 100,
+    };
+  }).filter(({ matchesFoodType, matchesCategory, searchScore }) => {
+    const hasSearch = Boolean(searchQuery.trim());
+    return matchesFoodType && (hasSearch ? searchScore >= 60 : matchesCategory);
+  }).sort((a, b) => {
+    if (!searchQuery.trim()) return 0;
+    if (b.searchScore !== a.searchScore) return b.searchScore - a.searchScore;
+    return Number(b.matchesCategory) - Number(a.matchesCategory);
+  }).map(({ item }) => item);
 
   // Calculate order items for active table which is confirmed
   const activeTableOrder = orders.find(o => o.table_number === tableNum && o.status !== "completed" && o.status !== "cancelled");
