@@ -28,7 +28,7 @@ const getCategoryIcon = (iconName: string) => {
 // SMART SEARCH ENGINE (fuzzy + synonyms + phonetic + category)
 // ============================================================
 const SEARCH_SYNONYMS: Record<string, string[]> = {
-  naan: ["nan", "nun", "none", "non", "naan bread", "bread", "roti", "kulcha", "tandoori bread", "butter naan", "garlic naan"],
+  naan: ["nan", "nun", "none", "naan bread", "bread", "roti", "kulcha", "tandoori bread", "butter naan", "garlic naan"],
   roti: ["chapati", "phulka", "bread", "tandoori roti", "rumali"],
   paratha: ["parantha", "prantha", "laccha"],
   chicken: ["chiken", "chikken", "murg", "murgh", "kukkad", "poultry"],
