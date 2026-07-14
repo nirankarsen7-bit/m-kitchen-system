@@ -306,12 +306,18 @@ export const CustomerInterface: React.FC<{ currentTableNum?: number }> = ({ curr
     setTimeout(() => setOrderSuccess(false), 5000);
   };
 
-  // Filter food list
+  // Filter food list (smart fuzzy + synonym-aware search)
   const filteredMenuItems = menuItems.filter(item => {
     const matchesCategory = activeCategory === "all" || item.category_id === activeCategory;
     const matchesFoodType = foodTypeFilter === "all" || (foodTypeFilter === "non_veg" ? item.food_type === "non_veg" : (item.food_type ?? "veg") === "veg");
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const cat = categories.find(c => c.id === item.category_id);
+    const matchesSearch = !searchQuery.trim() || smartSearchMatch(searchQuery, [
+      item.name,
+      item.description,
+      cat?.name ?? "",
+      cat?.description ?? "",
+      item.food_type === "non_veg" ? "non veg meat" : "veg vegetarian",
+    ]);
     return matchesCategory && matchesFoodType && matchesSearch;
   });
 
