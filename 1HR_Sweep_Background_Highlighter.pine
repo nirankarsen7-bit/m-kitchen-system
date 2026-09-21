@@ -1,0 +1,49 @@
+//@version=5
+indicator("1HR Sweep Background Highlighter", overlay=true)
+
+// ============================================================
+// SETTINGS
+// ============================================================
+bullColor = input.color(color.new(color.green, 85), "Bullish BG Color")
+bearColor = input.color(color.new(color.red,   85), "Bearish BG Color")
+
+// ============================================================
+// SWEEP CALCULATION FUNCTION
+// Calculates sweep condition on target timeframe:
+// - Candle's high/low sweeps the high/low of its previous 3 candles
+// - Candle closes back inside (close > prev3Low for bull, close < prev3High for bear)
+// ============================================================
+calcSweep() =>
+    prev3High = math.max(high[1], math.max(high[2], high[3]))
+    prev3Low  = math.min(low[1],  math.min(low[2],  low[3]))
+
+    bullish = low < prev3Low and close > prev3Low
+    bearish = high > prev3High and close < prev3High
+    [bullish, bearish]
+
+// ============================================================
+// TIMEFRAME SELECTION RULE:
+// - Chart TF <= 1HR (3600 seconds) → Target TF is 1HR ("60")
+// - Chart TF >  1HR (> 3600 seconds) → Target TF is current chart TF
+// ============================================================
+isAbove1HR = timeframe.in_seconds() > 3600
+targetTF   = isAbove1HR ? timeframe.period : "60"
+
+// Request target timeframe sweep status
+[tfBull, tfBear] = request.security(syminfo.tickerid, targetTF, calcSweep(), lookahead = barmerge.lookahead_off)
+
+// Timing Alignment:
+// On timeframes lower than 1HR (e.g. 5m), request.security with lookahead_off automatically
+// provides the completed 1HR candle's sweep result during the subsequent hour (e.g. 12:01 PM to 1:00 PM).
+// On timeframes equal to or higher than target TF (1HR or >1HR), tfBull[1] offsets by 1 bar
+// to highlight the bar immediately following the closed sweep candle.
+isLowerTF = timeframe.in_seconds() < 3600
+
+finalBull = isLowerTF ? tfBull : tfBull[1]
+finalBear = isLowerTF ? tfBear : tfBear[1]
+
+// ============================================================
+// BACKGROUND COLORING ONLY (No labels or lines)
+// ============================================================
+bgcolor(finalBull and not finalBear ? bullColor : na, title="Bullish Sweep BG")
+bgcolor(finalBear and not finalBull ? bearColor : na, title="Bearish Sweep BG")
